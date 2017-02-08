@@ -8,7 +8,6 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import com.wangshy.androiddemo.R;
-import com.wangshy.androiddemo.implement.IRecyclerView;
 
 import java.util.List;
 
@@ -35,14 +34,15 @@ public class MainAdapter extends RecyclerView.Adapter<MainAdapter.ViewHolder> {
     @Override
     public void onBindViewHolder(ViewHolder holder, final int position) {
         holder.itme_text.setText(mList.get(position));
-        holder.itme_layout.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (view != null) {
-                    view.onCheck(position);
-                }
-            }
-        });
+        holder.itme_layout.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        if (view != null) {
+                            view.onCheck(position);
+                        }
+                    }
+                });
     }
 
     @Override
@@ -63,5 +63,9 @@ public class MainAdapter extends RecyclerView.Adapter<MainAdapter.ViewHolder> {
 
     public void setOn(IRecyclerView view) {
         this.view = view;
+    }
+
+    public interface IRecyclerView {
+        void onCheck(int position);
     }
 }
