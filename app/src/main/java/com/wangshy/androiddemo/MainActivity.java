@@ -5,8 +5,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 
-import com.wangshy.androiddemo.activity.SecondActivity;
-import com.wangshy.androiddemo.activity.XfermodeActivity;
+import com.wangshy.androiddemo.xfermode.XfermodeActivity;
 import com.wangshy.androiddemo.adapter.MainAdapter;
 
 public class MainActivity extends AppCompatActivity {
@@ -21,15 +20,21 @@ public class MainActivity extends AppCompatActivity {
         mreycler = (RecyclerView) findViewById(R.id.recyclerView);
         LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this);
         mreycler.setLayoutManager(linearLayoutManager);
-        mainAdapter = new MainAdapter(Content.getList());
-        mreycler.setAdapter(mainAdapter);
 
-        mainAdapter.setOn(new MainAdapter.IRecyclerView() {
-            @Override
-            public void onCheck(int position) {
-                toActivity(position);
-            }
-        });
+        mreycler.setAdapter(new MainAdapter(Content.getList(Content.type.ACTIVITY))
+                .setOn(new MainAdapter.IRecyclerView() {
+                    @Override
+                    public void onCheck(int position) {
+                        toActivity(position);
+                    }
+                }));
+
+//        mainAdapter.setOn(new MainAdapter.IRecyclerView() {
+//            @Override
+//            public void onCheck(int position) {
+//                toActivity(position);
+//            }
+//        });
     }
 
     private void toActivity(int position) {

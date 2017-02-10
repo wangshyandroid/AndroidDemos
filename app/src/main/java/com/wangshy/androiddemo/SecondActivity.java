@@ -1,4 +1,4 @@
-package com.wangshy.androiddemo.activity;
+package com.wangshy.androiddemo;
 
 import android.animation.ArgbEvaluator;
 import android.animation.ObjectAnimator;
@@ -6,18 +6,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.view.View;
-import android.view.animation.AlphaAnimation;
-import android.view.animation.Animation;
-import android.view.animation.AnimationUtils;
-import android.view.animation.TranslateAnimation;
-import android.widget.ImageView;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.widget.TextView;
 
-import com.wangshy.androiddemo.R;
+import com.wangshy.androiddemo.adapter.MainAdapter;
+import com.wangshy.androiddemo.animation.AnimationActivity;
 
 public class SecondActivity extends AppCompatActivity {
-    private AlphaAnimation alphaAnimation;
+    private RecyclerView mreycler;
 
     public static void SecondActivity(Context context) {
         context.startActivity(new Intent(context, SecondActivity.class));
@@ -29,23 +26,18 @@ public class SecondActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_second);
-        img = (TextView) findViewById(R.id.img);
-        final TranslateAnimation translateAnimation = new TranslateAnimation(0, 200, 0, 200);
-        translateAnimation.setDuration(1000);
-        translateAnimation.setFillAfter(false);
-        img.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-
-                img.startAnimation(translateAnimation);
-            }
-        });
+        mreycler = (RecyclerView) findViewById(R.id.recyclerView);
+        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this);
+        mreycler.setLayoutManager(linearLayoutManager);
+        mreycler.setAdapter(new MainAdapter(Content.getList(Content.type.ANIMATION))
+                .setOn(new MainAdapter.IRecyclerView() {
+                    @Override
+                    public void onCheck(int position) {
+                        AnimationActivity.AnimationActivity(SecondActivity.this, position);
+                    }
+                }));
     }
 
-    public void onClick(View view) {
-//        execAnimator();
-//        alphaAnimation.start();
-    }
 
     //    public void execAnimator() {
 //        ObjectAnimator objectAnimator = ObjectAnimator.ofFloat(img, "alpha", 0, 1, 1, 0, 0, 1, 1, 0);

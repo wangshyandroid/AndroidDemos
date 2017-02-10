@@ -5,23 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    tools:context="com.wangshy.androiddemo.activity.SecondActivity">
+    tools:context="com.wangshy.androiddemo.SecondActivity">
 
-    <Button
-        android:id="@+id/botton"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:onClick="onClick"
-        android:text="Buttion2" />
-
-    <TextView
-        android:id="@+id/img"
-        android:layout_width="100dp"
-        android:layout_height="100dp"
-        android:layout_gravity="center"
-        android:gravity="center"
-        android:text="测试"
-        android:background="#812aec"
-        android:textColor="#ffffff"
-        android:textSize="18sp" />
+    <include layout="@layout/activity_main" />
 </LinearLayout>

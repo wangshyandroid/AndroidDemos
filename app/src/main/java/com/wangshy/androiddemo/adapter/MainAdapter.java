@@ -61,8 +61,9 @@ public class MainAdapter extends RecyclerView.Adapter<MainAdapter.ViewHolder> {
         }
     }
 
-    public void setOn(IRecyclerView view) {
+    public MainAdapter setOn(IRecyclerView view) {
         this.view = view;
+        return this;
     }
 
     public interface IRecyclerView {
