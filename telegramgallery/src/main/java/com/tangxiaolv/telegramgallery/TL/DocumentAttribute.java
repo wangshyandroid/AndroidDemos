@@ -15,7 +15,7 @@ public class DocumentAttribute extends TLObject {
     public String file_name;
 
     public static DocumentAttribute TLdeserialize(AbstractSerializedData stream, int constructor,
-            boolean exception) {
+                                                  boolean exception) {
         DocumentAttribute result = null;
         switch (constructor) {
             case 0x11b58939:

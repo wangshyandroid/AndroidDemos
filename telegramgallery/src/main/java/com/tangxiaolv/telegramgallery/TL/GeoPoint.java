@@ -6,7 +6,7 @@ public class GeoPoint extends TLObject {
     public double lat;
 
     public static GeoPoint TLdeserialize(AbstractSerializedData stream, int constructor,
-            boolean exception) {
+                                         boolean exception) {
         GeoPoint result = null;
         switch (constructor) {
             case 0x1117dd5f:

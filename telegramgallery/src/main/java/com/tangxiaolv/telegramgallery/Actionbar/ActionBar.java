@@ -77,7 +77,7 @@ public class ActionBar extends FrameLayout {
                 .setBackgroundDrawable(Theme.createBarSelectorDrawable(itemsBackgroundColor));
         LayoutParams params = LayoutHelper.createFrame(28, 30);
         params.gravity = Gravity.CENTER_VERTICAL;
-        params.setMargins(AndroidUtilities.dp(8),0,0,0);
+        params.setMargins(AndroidUtilities.dp(8), 0, 0, 0);
         backContainer.addView(backButtonImageView, params);
         addView(backContainer, LayoutHelper.createFrame(54, 54, Gravity.LEFT | Gravity.TOP));
 
@@ -96,7 +96,7 @@ public class ActionBar extends FrameLayout {
     }
 
     private void createBackButtonText(String text) {
-        if (backButtonTextView != null){
+        if (backButtonTextView != null) {
             return;
         }
 
@@ -106,7 +106,7 @@ public class ActionBar extends FrameLayout {
         backButtonTextView.setTextSize(18);
         backButtonTextView.setTextColor(0xffffffff);
         backButtonTextView.setGravity(Gravity.CENTER_VERTICAL);
-        LayoutParams textParams = LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT, Gravity.LEFT | Gravity.TOP,8,0,0,0);
+        LayoutParams textParams = LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT, Gravity.LEFT | Gravity.TOP, 8, 0, 0, 0);
         backButtonTextView.setLayoutParams(textParams);
         backContainer.addView(backButtonTextView);
         backContainer.setLayoutParams(LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT));
@@ -474,7 +474,7 @@ public class ActionBar extends FrameLayout {
             if (titleTextView != null && titleTextView.getVisibility() != GONE) {
                 titleTextView.setTextSize(!AndroidUtilities.isTablet() && getResources()
                         .getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE ? 18
-                                : 20);
+                        : 20);
                 titleTextView.measure(
                         MeasureSpec.makeMeasureSpec(availableWidth, MeasureSpec.AT_MOST),
                         MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(24), MeasureSpec.AT_MOST));
@@ -483,7 +483,7 @@ public class ActionBar extends FrameLayout {
             if (subtitleTextView != null && subtitleTextView.getVisibility() != GONE) {
                 subtitleTextView.setTextSize(!AndroidUtilities.isTablet() && getResources()
                         .getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE ? 14
-                                : 16);
+                        : 16);
                 subtitleTextView.measure(
                         MeasureSpec.makeMeasureSpec(availableWidth, MeasureSpec.AT_MOST),
                         MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(20), MeasureSpec.AT_MOST));
@@ -528,8 +528,8 @@ public class ActionBar extends FrameLayout {
             if (subtitleTextView != null && subtitleTextView.getVisibility() != GONE) {
                 textTop = (getCurrentActionBarHeight() / 2 - titleTextView.getTextHeight()) / 2
                         + AndroidUtilities.dp(!AndroidUtilities.isTablet() && getResources()
-                                .getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE
-                                        ? 2 : 3);
+                        .getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE
+                        ? 2 : 3);
             } else {
                 textTop = (getCurrentActionBarHeight() - titleTextView.getTextHeight()) / 2;
             }
@@ -541,8 +541,8 @@ public class ActionBar extends FrameLayout {
             int textTop = getCurrentActionBarHeight() / 2
                     + (getCurrentActionBarHeight() / 2 - subtitleTextView.getTextHeight()) / 2
                     - AndroidUtilities.dp(!AndroidUtilities.isTablet() && getResources()
-                            .getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE
-                                    ? 1 : 1);
+                    .getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE
+                    ? 1 : 1);
             subtitleTextView.layout(textLeft, additionalTop + textTop,
                     textLeft + subtitleTextView.getMeasuredWidth(),
                     additionalTop + textTop + subtitleTextView.getTextHeight());
@@ -599,15 +599,15 @@ public class ActionBar extends FrameLayout {
 
             //标题居中
             childLeft = screenSize.x / 2;
-            if (child instanceof ActionBarMenuItem){
+            if (child instanceof ActionBarMenuItem) {
                 int realTextSize;
                 int count = ((ActionBarMenuItem) child).getChildCount();
                 for (int j = 0; j < count; j++) {
-                    if (((ActionBarMenuItem) child).getChildAt(j) instanceof TextView){
+                    if (((ActionBarMenuItem) child).getChildAt(j) instanceof TextView) {
                         TextView innertext = (TextView) ((ActionBarMenuItem) child).getChildAt(j);
                         realTextSize = width - innertext.getCompoundDrawablePadding();
                         Drawable rightDrawable = innertext.getCompoundDrawables()[2];
-                        if (rightDrawable != null){
+                        if (rightDrawable != null) {
                             realTextSize -= rightDrawable.getIntrinsicWidth();
                         }
                         childLeft -= realTextSize / 2;

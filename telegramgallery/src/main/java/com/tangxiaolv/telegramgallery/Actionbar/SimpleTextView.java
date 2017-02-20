@@ -262,7 +262,7 @@ public class SimpleTextView extends View implements Drawable.Callback {
             rightDrawable.draw(canvas);
         }
 
-        if ((gravity & Gravity.CENTER) == Gravity.CENTER){
+        if ((gravity & Gravity.CENTER) == Gravity.CENTER) {
             textOffsetX = screenSize.x / 2 - getLeft() - textWidth / 2;
         }
         if (layout != null) {

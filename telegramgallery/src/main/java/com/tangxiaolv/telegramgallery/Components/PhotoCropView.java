@@ -15,6 +15,7 @@ public class PhotoCropView extends FrameLayout {
 
     public interface PhotoCropViewDelegate {
         void needMoveImageTo(float x, float y, float s, boolean animated);
+
         Bitmap getBitmap();
     }
 

@@ -79,9 +79,9 @@ public class AndroidUtilities {
                             + "(?:" + DOMAIN_NAME + ")"
                             + "(?:\\:\\d{1,5})?)" // plus option port number
                             + "(\\/(?:(?:[" + GOOD_IRI_CHAR + "\\;\\/\\?\\:\\@\\&\\=\\#\\~" // plus
-                                                                                            // option
-                                                                                            // query
-                                                                                            // params
+                            // option
+                            // query
+                            // params
                             + "\\-\\.\\+\\!\\*\\'\\(\\)\\,\\_])|(?:\\%[a-fA-F0-9]{2}))*)?"
                             + "(?:\\b|$)");
         } catch (Exception e) {
@@ -112,10 +112,10 @@ public class AndroidUtilities {
         }
     }
 
-    public static void showToast(String text){
-        if (toast == null){
-            toast = Toast.makeText(Gallery.applicationContext,text,Toast.LENGTH_SHORT);
-        }else{
+    public static void showToast(String text) {
+        if (toast == null) {
+            toast = Toast.makeText(Gallery.applicationContext, text, Toast.LENGTH_SHORT);
+        } else {
             toast.setText(text);
         }
         toast.show();
@@ -569,7 +569,7 @@ public class AndroidUtilities {
                     }
 
                     final String selection = "_id=?";
-                    final String[] selectionArgs = new String[] {
+                    final String[] selectionArgs = new String[]{
                             split[1]
                     };
 
@@ -588,7 +588,7 @@ public class AndroidUtilities {
     }
 
     public static String getDataColumn(Context context, Uri uri, String selection,
-            String[] selectionArgs) {
+                                       String[] selectionArgs) {
 
         Cursor cursor = null;
         final String column = "_data";

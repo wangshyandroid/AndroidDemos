@@ -9,7 +9,7 @@ public class InputEncryptedFile extends TLObject {
     public String md5_checksum;
 
     public static InputEncryptedFile TLdeserialize(AbstractSerializedData stream, int constructor,
-            boolean exception) {
+                                                   boolean exception) {
         InputEncryptedFile result = null;
         switch (constructor) {
             case 0x5a17b5e5:

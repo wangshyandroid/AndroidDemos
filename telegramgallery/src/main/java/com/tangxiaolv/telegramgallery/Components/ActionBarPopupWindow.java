@@ -30,6 +30,7 @@ public class ActionBarPopupWindow extends PopupWindow {
     private static final boolean animationEnabled = Build.VERSION.SDK_INT >= 18;
     private static DecelerateInterpolator decelerateInterpolator = new DecelerateInterpolator();
     private AnimatorSet windowAnimatorSet;
+
     static {
         Field f = null;
         try {

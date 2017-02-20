@@ -109,7 +109,7 @@ public class NotificationCenter {
     }
 
     public void postNotificationNameInternal(int id, boolean allowDuringAnimation, Object... args) {
-        if (Looper.getMainLooper() != Looper.myLooper()){
+        if (Looper.getMainLooper() != Looper.myLooper()) {
             throw new RuntimeException("addObserver allowed only from MAIN thread");
         }
 
@@ -152,8 +152,8 @@ public class NotificationCenter {
     }
 
     public void addObserver(Object observer, int id) {
-        if (Looper.getMainLooper() != Looper.myLooper()){
-                throw new RuntimeException("addObserver allowed only from MAIN thread");
+        if (Looper.getMainLooper() != Looper.myLooper()) {
+            throw new RuntimeException("addObserver allowed only from MAIN thread");
         }
 
         if (broadcasting != 0) {
@@ -176,7 +176,7 @@ public class NotificationCenter {
     }
 
     public void removeObserver(Object observer, int id) {
-        if (Looper.getMainLooper() != Looper.myLooper()){
+        if (Looper.getMainLooper() != Looper.myLooper()) {
             throw new RuntimeException("addObserver allowed only from MAIN thread");
         }
 

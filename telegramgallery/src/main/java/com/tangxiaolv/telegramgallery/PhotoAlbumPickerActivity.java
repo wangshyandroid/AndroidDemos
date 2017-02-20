@@ -79,7 +79,7 @@ public class PhotoAlbumPickerActivity extends BaseFragment
     private final static int item_video = 3;
 
     public PhotoAlbumPickerActivity(String[] filterMimeTypes, int limitPick, boolean singlePhoto,
-            boolean allowGifs) {
+                                    boolean allowGifs) {
         super();
         limitPickPhoto = limitPick;
         this.filterMimeTypes = filterMimeTypes;
@@ -545,7 +545,7 @@ public class PhotoAlbumPickerActivity extends BaseFragment
     }
 
     private void openPhotoPicker(MediaController.AlbumEntry albumEntry, int type,
-            boolean withAnim) {
+                                 boolean withAnim) {
         currentPhotoPickerActivity = new PhotoPickerActivity(type, limitPickPhoto, albumEntry,
                 selectedPhotos, null, singlePhoto);
         currentPhotoPickerActivity

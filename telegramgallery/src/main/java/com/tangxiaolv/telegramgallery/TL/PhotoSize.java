@@ -10,7 +10,7 @@ public class PhotoSize extends TLObject {
     public byte[] bytes;
 
     public static PhotoSize TLdeserialize(AbstractSerializedData stream, int constructor,
-            boolean exception) {
+                                          boolean exception) {
         PhotoSize result = null;
         switch (constructor) {
             case 0x77bfb61b:

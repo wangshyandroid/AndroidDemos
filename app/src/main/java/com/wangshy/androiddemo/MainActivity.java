@@ -6,11 +6,11 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.widget.Button;
 
+import com.wangshy.androiddemo.adapter.MainAdapter;
 import com.wangshy.androiddemo.broadcast.BroadcastActivity;
 import com.wangshy.androiddemo.md.MDActivity;
 import com.wangshy.androiddemo.view.MyViewActivity;
 import com.wangshy.androiddemo.xfermode.XfermodeActivity;
-import com.wangshy.androiddemo.adapter.MainAdapter;
 
 public class MainActivity extends AppCompatActivity {
     private static String TAG = MainActivity.class.getName();
@@ -57,6 +57,9 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case 6:
                 PngActivity.actionStart(this);
+                break;
+            case 7:
+                Image_CroppingActivity.actionStart(this);
                 break;
         }
     }

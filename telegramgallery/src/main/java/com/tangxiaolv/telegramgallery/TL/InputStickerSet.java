@@ -7,7 +7,7 @@ public class InputStickerSet extends TLObject {
     public String short_name;
 
     public static InputStickerSet TLdeserialize(AbstractSerializedData stream, int constructor,
-            boolean exception) {
+                                                boolean exception) {
         InputStickerSet result = null;
         switch (constructor) {
             case 0xffb62b95:

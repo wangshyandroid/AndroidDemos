@@ -94,65 +94,65 @@ public class LocaleController {
     }
 
     public LocaleController() {
-        addRules(new String[] {
+        addRules(new String[]{
                 "bem", "brx", "da", "de", "el", "en", "eo", "es", "et", "fi", "fo", "gl", "he",
                 "iw", "it", "nb", "nl", "nn", "no", "sv", "af", "bg", "bn", "ca", "eu", "fur", "fy",
                 "gu", "ha", "is", "ku", "lb", "ml", "mr", "nah", "ne", "om", "or", "pa", "pap",
                 "ps", "so", "sq", "sw", "ta", "te", "tk", "ur", "zu", "mn", "gsw", "chr", "rm",
                 "pt", "an", "ast"
         }, new PluralRules_One());
-        addRules(new String[] {
+        addRules(new String[]{
                 "cs", "sk"
         }, new PluralRules_Czech());
-        addRules(new String[] {
+        addRules(new String[]{
                 "ff", "fr", "kab"
         }, new PluralRules_French());
-        addRules(new String[] {
+        addRules(new String[]{
                 "hr", "ru", "sr", "uk", "be", "bs", "sh"
         }, new PluralRules_Balkan());
-        addRules(new String[] {
+        addRules(new String[]{
                 "lv"
         }, new PluralRules_Latvian());
-        addRules(new String[] {
+        addRules(new String[]{
                 "lt"
         }, new PluralRules_Lithuanian());
-        addRules(new String[] {
+        addRules(new String[]{
                 "pl"
         }, new PluralRules_Polish());
-        addRules(new String[] {
+        addRules(new String[]{
                 "ro", "mo"
         }, new PluralRules_Romanian());
-        addRules(new String[] {
+        addRules(new String[]{
                 "sl"
         }, new PluralRules_Slovenian());
-        addRules(new String[] {
+        addRules(new String[]{
                 "ar"
         }, new PluralRules_Arabic());
-        addRules(new String[] {
+        addRules(new String[]{
                 "mk"
         }, new PluralRules_Macedonian());
-        addRules(new String[] {
+        addRules(new String[]{
                 "cy"
         }, new PluralRules_Welsh());
-        addRules(new String[] {
+        addRules(new String[]{
                 "br"
         }, new PluralRules_Breton());
-        addRules(new String[] {
+        addRules(new String[]{
                 "lag"
         }, new PluralRules_Langi());
-        addRules(new String[] {
+        addRules(new String[]{
                 "shi"
         }, new PluralRules_Tachelhit());
-        addRules(new String[] {
+        addRules(new String[]{
                 "mt"
         }, new PluralRules_Maltese());
-        addRules(new String[] {
+        addRules(new String[]{
                 "ga", "se", "sma", "smi", "smj", "smn", "sms"
         }, new PluralRules_Two());
-        addRules(new String[] {
+        addRules(new String[]{
                 "ak", "am", "bh", "fil", "tl", "guw", "hi", "ln", "mg", "nso", "ti", "wa"
         }, new PluralRules_Zero());
-        addRules(new String[] {
+        addRules(new String[]{
                 "az", "bm", "fa", "ig", "hu", "ja", "kde", "kea", "ko", "my", "ses", "sg", "to",
                 "tr", "vi", "wo", "yo", "zh", "bo", "dz", "id", "jv", "ka", "km", "kn", "ms", "th"
         }, new PluralRules_None());

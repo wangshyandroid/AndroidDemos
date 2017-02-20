@@ -97,34 +97,42 @@ public class FileLoader {
         cancelLoadFile(null, location, ext);
     }
 
-    private void cancelLoadFile(final Document document, final FileLocation location,
-            final String locationExt) {
-        if (location == null && document == null) {
-            return;
-        }
-        fileLoaderQueue.postRunnable(new Runnable() {
-            @Override
-            public void run() {
-                String fileName = null;
-                if (location != null) {
-                    fileName = getAttachFileName(location, locationExt);
-                } else if (document != null) {
-                    fileName = getAttachFileName(document);
+    public static File getPathToAttach(TLObject attach, String ext, boolean forceCache) {
+        File dir = null;
+        if (forceCache) {
+            dir = getInstance().getDirectory(MEDIA_DIR_CACHE);
+        } else {
+            if (attach instanceof Document) {
+                Document document = (Document) attach;
+                if (document.key != null) {
+                    dir = getInstance().getDirectory(MEDIA_DIR_CACHE);
+                } else {
+                    dir = getInstance().getDirectory(MEDIA_DIR_DOCUMENT);
                 }
-                if (fileName == null) {
-                    return;
+            } else if (attach instanceof PhotoSize) {
+                PhotoSize photoSize = (PhotoSize) attach;
+                if (photoSize.location == null || photoSize.location.key != null
+                        || photoSize.location.volume_id == Integer.MIN_VALUE
+                        && photoSize.location.local_id < 0
+                        || photoSize.size < 0) {
+                    dir = getInstance().getDirectory(MEDIA_DIR_CACHE);
+                } else {
+                    dir = getInstance().getDirectory(MEDIA_DIR_IMAGE);
                 }
-                FileLoadOperation operation = loadOperationPaths.remove(fileName);
-                if (operation != null) {
-                    if (location != null) {
-                        photoLoadOperationQueue.remove(operation);
-                    } else {
-                        loadOperationQueue.remove(operation);
-                    }
-                    operation.cancel();
+            } else if (attach instanceof FileLocation) {
+                FileLocation fileLocation = (FileLocation) attach;
+                if (fileLocation.key != null || fileLocation.volume_id == Integer.MIN_VALUE
+                        && fileLocation.local_id < 0) {
+                    dir = getInstance().getDirectory(MEDIA_DIR_CACHE);
+                } else {
+                    dir = getInstance().getDirectory(MEDIA_DIR_IMAGE);
                 }
             }
-        });
+        }
+        if (dir == null) {
+            return new File("");
+        }
+        return new File(dir, getAttachFileName(attach, ext));
     }
 
     public boolean isLoadingFile(final String fileName) {
@@ -160,9 +168,88 @@ public class FileLoader {
                 cacheOnly || size == 0 || (location != null && location.key != null));
     }
 
+    public static PhotoSize getClosestPhotoSizeWithSize(ArrayList<PhotoSize> sizes, int side,
+                                                        boolean byMinSide) {
+        if (sizes == null || sizes.isEmpty()) {
+            return null;
+        }
+        int lastSide = 0;
+        PhotoSize closestObject = null;
+        for (int a = 0; a < sizes.size(); a++) {
+            PhotoSize obj = sizes.get(a);
+            if (obj == null) {
+                continue;
+            }
+            if (byMinSide) {
+                int currentSide = obj.h >= obj.w ? obj.w : obj.h;
+                if (closestObject == null
+                        || side > 100 && closestObject.location != null
+                        && closestObject.location.dc_id == Integer.MIN_VALUE
+                        || obj instanceof PhotoSize.TL_photoCachedSize
+                        || side > lastSide && lastSide < currentSide) {
+                    closestObject = obj;
+                    lastSide = currentSide;
+                }
+            } else {
+                int currentSide = obj.w >= obj.h ? obj.w : obj.h;
+                if (closestObject == null
+                        || side > 100 && closestObject.location != null
+                        && closestObject.location.dc_id == Integer.MIN_VALUE
+                        || obj instanceof PhotoSize.TL_photoCachedSize
+                        || currentSide <= side && lastSide < currentSide) {
+                    closestObject = obj;
+                    lastSide = currentSide;
+                }
+            }
+        }
+        return closestObject;
+    }
+
+    private void cancelLoadFile(final Document document, final FileLocation location,
+                                final String locationExt) {
+        if (location == null && document == null) {
+            return;
+        }
+        fileLoaderQueue.postRunnable(new Runnable() {
+            @Override
+            public void run() {
+                String fileName = null;
+                if (location != null) {
+                    fileName = getAttachFileName(location, locationExt);
+                } else if (document != null) {
+                    fileName = getAttachFileName(document);
+                }
+                if (fileName == null) {
+                    return;
+                }
+                FileLoadOperation operation = loadOperationPaths.remove(fileName);
+                if (operation != null) {
+                    if (location != null) {
+                        photoLoadOperationQueue.remove(operation);
+                    } else {
+                        loadOperationQueue.remove(operation);
+                    }
+                    operation.cancel();
+                }
+            }
+        });
+    }
+
+    public void setDelegate(FileLoaderDelegate delegate) {
+        this.delegate = delegate;
+    }
+
+    public static File getPathToAttach(TLObject attach) {
+        return getPathToAttach(attach, null, false);
+    }
+
+    public static File getPathToAttach(TLObject attach, boolean forceCache) {
+        return getPathToAttach(attach, null, forceCache);
+    }
+
     private void loadFile(final Document document, final FileLocation location,
-            final String locationExt, final int locationSize, final boolean force,
-            final boolean cacheOnly) {
+                          final String locationExt, final int locationSize, final boolean force,
+                          final boolean cacheOnly) {
         fileLoaderQueue.postRunnable(new Runnable() {
             @Override
             public void run() {
@@ -235,7 +322,7 @@ public class FileLoader {
 
                     @Override
                     public void didChangedLoadProgress(FileLoadOperation operation,
-                            float progress) {
+                                                       float progress) {
                         if (delegate != null) {
                             delegate.fileLoadProgressChanged(finalFileName, progress);
                         }
@@ -280,8 +367,12 @@ public class FileLoader {
         });
     }
 
+    public static PhotoSize getClosestPhotoSizeWithSize(ArrayList<PhotoSize> sizes, int side) {
+        return getClosestPhotoSizeWithSize(sizes, side, false);
+    }
+
     private void checkDownloadQueue(final Document document, final FileLocation location,
-            final String arg1) {
+                                    final String arg1) {
         fileLoaderQueue.postRunnable(new Runnable() {
             @Override
             public void run() {
@@ -316,97 +407,6 @@ public class FileLoader {
                 }
             }
         });
-    }
-
-    public void setDelegate(FileLoaderDelegate delegate) {
-        this.delegate = delegate;
-    }
-
-    public static File getPathToAttach(TLObject attach) {
-        return getPathToAttach(attach, null, false);
-    }
-
-    public static File getPathToAttach(TLObject attach, boolean forceCache) {
-        return getPathToAttach(attach, null, forceCache);
-    }
-
-    public static File getPathToAttach(TLObject attach, String ext, boolean forceCache) {
-        File dir = null;
-        if (forceCache) {
-            dir = getInstance().getDirectory(MEDIA_DIR_CACHE);
-        } else {
-            if (attach instanceof Document) {
-                Document document = (Document) attach;
-                if (document.key != null) {
-                    dir = getInstance().getDirectory(MEDIA_DIR_CACHE);
-                } else {
-                    dir = getInstance().getDirectory(MEDIA_DIR_DOCUMENT);
-                }
-            } else if (attach instanceof PhotoSize) {
-                PhotoSize photoSize = (PhotoSize) attach;
-                if (photoSize.location == null || photoSize.location.key != null
-                        || photoSize.location.volume_id == Integer.MIN_VALUE
-                                && photoSize.location.local_id < 0
-                        || photoSize.size < 0) {
-                    dir = getInstance().getDirectory(MEDIA_DIR_CACHE);
-                } else {
-                    dir = getInstance().getDirectory(MEDIA_DIR_IMAGE);
-                }
-            } else if (attach instanceof FileLocation) {
-                FileLocation fileLocation = (FileLocation) attach;
-                if (fileLocation.key != null || fileLocation.volume_id == Integer.MIN_VALUE
-                        && fileLocation.local_id < 0) {
-                    dir = getInstance().getDirectory(MEDIA_DIR_CACHE);
-                } else {
-                    dir = getInstance().getDirectory(MEDIA_DIR_IMAGE);
-                }
-            }
-        }
-        if (dir == null) {
-            return new File("");
-        }
-        return new File(dir, getAttachFileName(attach, ext));
-    }
-
-    public static PhotoSize getClosestPhotoSizeWithSize(ArrayList<PhotoSize> sizes, int side) {
-        return getClosestPhotoSizeWithSize(sizes, side, false);
-    }
-
-    public static PhotoSize getClosestPhotoSizeWithSize(ArrayList<PhotoSize> sizes, int side,
-            boolean byMinSide) {
-        if (sizes == null || sizes.isEmpty()) {
-            return null;
-        }
-        int lastSide = 0;
-        PhotoSize closestObject = null;
-        for (int a = 0; a < sizes.size(); a++) {
-            PhotoSize obj = sizes.get(a);
-            if (obj == null) {
-                continue;
-            }
-            if (byMinSide) {
-                int currentSide = obj.h >= obj.w ? obj.w : obj.h;
-                if (closestObject == null
-                        || side > 100 && closestObject.location != null
-                                && closestObject.location.dc_id == Integer.MIN_VALUE
-                        || obj instanceof PhotoSize.TL_photoCachedSize
-                        || side > lastSide && lastSide < currentSide) {
-                    closestObject = obj;
-                    lastSide = currentSide;
-                }
-            } else {
-                int currentSide = obj.w >= obj.h ? obj.w : obj.h;
-                if (closestObject == null
-                        || side > 100 && closestObject.location != null
-                                && closestObject.location.dc_id == Integer.MIN_VALUE
-                        || obj instanceof PhotoSize.TL_photoCachedSize
-                        || currentSide <= side && lastSide < currentSide) {
-                    closestObject = obj;
-                    lastSide = currentSide;
-                }
-            }
-        }
-        return closestObject;
     }
 
     public static String getFileExtension(File file) {

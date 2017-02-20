@@ -33,36 +33,33 @@ public class GalleryActivity extends Activity implements ActionBarLayout.ActionB
     private ActionBarLayout actionBarLayout;
     private PhotoAlbumPickerActivity albumPickerActivity;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_gallery);
-        Gallery.init(getApplication());
-
-        FrameLayout mian = (FrameLayout) findViewById(R.id.mian);
-        actionBarLayout = new ActionBarLayout(this);
-        mian.addView(actionBarLayout);
-        actionBarLayout.init(mainFragmentsStack);
-        actionBarLayout.setDelegate(this);
-
-        String READ_EXTERNAL_STORAGE = "android.permission.READ_EXTERNAL_STORAGE";
-        if (checkCallingOrSelfPermission(
-                READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            if (Build.VERSION.SDK_INT >= 23) {
-                requestPermissions(new String[] {
-                        READ_EXTERNAL_STORAGE
-                }, 1);
-                return;
-            }
-            //Toast.makeText(this, R.string.album_read_fail, Toast.LENGTH_SHORT).show();
-        }
-        showContent();
+    /**
+     * 打开相册
+     *
+     * @param filterMimeTypes 需要过滤掉的媒体文件类型，以MimeType标识：{http://www.w3school.com.cn/media/media_mimeref.asp}
+     *                        <span>eg:new String[]{"image/gif","image/jpeg"}<span/>
+     * @param singlePhoto     true:单选 false:多选
+     * @param limitPickPhoto  照片选取限制
+     * @param requestCode     请求码
+     */
+    public static void openActivity(
+            Activity activity,
+            String[] filterMimeTypes,
+            boolean singlePhoto,
+            int limitPickPhoto,
+            int requestCode) {
+        limitPickPhoto = singlePhoto ? 1 : limitPickPhoto > 0 ? limitPickPhoto : 1;
+        Intent intent = new Intent(activity, GalleryActivity.class);
+        intent.putExtra(SINGLE_PHOTO, singlePhoto);
+        intent.putExtra(LIMIT_PICK_PHOTO, limitPickPhoto);
+        intent.putExtra(FILTER_MIME_TYPES, filterMimeTypes);
+        intent.putExtra(HAS_CAMERA, /* hasCamera */false);
+        activity.startActivityForResult(intent, requestCode);
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            int[] grantResults) {
-        showContent();
+    public static void openActivity(Activity activity, boolean singlePhoto, int limitPickPhoto,
+                                    int requestCode) {
+        openActivity(activity, null, singlePhoto, limitPickPhoto, requestCode);
     }
 
     private void showContent() {
@@ -141,9 +138,29 @@ public class GalleryActivity extends Activity implements ActionBarLayout.ActionB
     }
 
     @Override
-    public boolean needPresentFragment(BaseFragment fragment, boolean removeLast,
-            boolean forceWithoutAnimation, ActionBarLayout layout) {
-        return true;
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_gallery);
+        Gallery.init(getApplication());
+
+        FrameLayout mian = (FrameLayout) findViewById(R.id.mian);
+        actionBarLayout = new ActionBarLayout(this);
+        mian.addView(actionBarLayout);
+        actionBarLayout.init(mainFragmentsStack);
+        actionBarLayout.setDelegate(this);
+
+        String READ_EXTERNAL_STORAGE = "android.permission.READ_EXTERNAL_STORAGE";
+        if (checkCallingOrSelfPermission(
+                READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            if (Build.VERSION.SDK_INT >= 23) {
+                requestPermissions(new String[]{
+                        READ_EXTERNAL_STORAGE
+                }, 1);
+                return;
+            }
+            //Toast.makeText(this, R.string.album_read_fail, Toast.LENGTH_SHORT).show();
+        }
+        showContent();
     }
 
     @Override
@@ -185,34 +202,16 @@ public class GalleryActivity extends Activity implements ActionBarLayout.ActionB
         super.onDestroy();
     }
 
-    /**
-     * 打开相册
-     *
-     * @param filterMimeTypes
-     *            需要过滤掉的媒体文件类型，以MimeType标识：{http://www.w3school.com.cn/media/media_mimeref.asp}
-     *            <span>eg:new String[]{"image/gif","image/jpeg"}<span/>
-     * @param singlePhoto true:单选 false:多选
-     * @param limitPickPhoto 照片选取限制
-     * @param requestCode 请求码
-     */
-    public static void openActivity(
-            Activity activity,
-            String[] filterMimeTypes,
-            boolean singlePhoto,
-            int limitPickPhoto,
-            int requestCode) {
-        limitPickPhoto = singlePhoto ? 1 : limitPickPhoto > 0 ? limitPickPhoto : 1;
-        Intent intent = new Intent(activity, GalleryActivity.class);
-        intent.putExtra(SINGLE_PHOTO, singlePhoto);
-        intent.putExtra(LIMIT_PICK_PHOTO, limitPickPhoto);
-        intent.putExtra(FILTER_MIME_TYPES, filterMimeTypes);
-        intent.putExtra(HAS_CAMERA, /* hasCamera */false);
-        activity.startActivityForResult(intent, requestCode);
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                           int[] grantResults) {
+        showContent();
     }
 
-    public static void openActivity(Activity activity, boolean singlePhoto, int limitPickPhoto,
-        int requestCode) {
-        openActivity(activity,null, singlePhoto, limitPickPhoto, requestCode);
+    @Override
+    public boolean needPresentFragment(BaseFragment fragment, boolean removeLast,
+                                       boolean forceWithoutAnimation, ActionBarLayout layout) {
+        return true;
     }
 
     public static void openActivity(Activity activity, boolean singlePhoto, int requestCode) {

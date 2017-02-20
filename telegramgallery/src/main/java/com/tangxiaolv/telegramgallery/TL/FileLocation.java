@@ -10,7 +10,7 @@ public class FileLocation extends TLObject {
     public byte[] iv;
 
     public static FileLocation TLdeserialize(AbstractSerializedData stream, int constructor,
-            boolean exception) {
+                                             boolean exception) {
         FileLocation result = null;
         switch (constructor) {
             case 0x53d69076:

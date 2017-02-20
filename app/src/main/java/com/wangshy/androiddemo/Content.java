@@ -26,6 +26,7 @@ public class Content {
                 mList.add("自定义View练习");
                 mList.add("MD风格");
                 mList.add("图片选择");
+                mList.add("图片压缩");
                 break;
             case XFERMODE:
                 break;

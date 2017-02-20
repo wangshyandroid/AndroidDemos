@@ -9,7 +9,7 @@ public class InputFileLocation extends TLObject {
     public long secret;
 
     public static InputFileLocation TLdeserialize(AbstractSerializedData stream, int constructor,
-            boolean exception) {
+                                                  boolean exception) {
         InputFileLocation result = null;
         switch (constructor) {
             case 0xf5235d55:

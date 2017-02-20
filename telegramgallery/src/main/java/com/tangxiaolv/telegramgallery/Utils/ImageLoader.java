@@ -1054,7 +1054,7 @@ public class ImageLoader {
 
             @Override
             protected void entryRemoved(boolean evicted, String key, final BitmapDrawable oldValue,
-                    BitmapDrawable newValue) {
+                                        BitmapDrawable newValue) {
                 if (ignoreRemoval != null && key != null && ignoreRemoval.equals(key)) {
                     return;
                 }
@@ -1442,200 +1442,251 @@ public class ImageLoader {
         return memCache.get(key);
     }
 
-    private void replaceImageInCacheInternal(final String oldKey, final String newKey,
-            final FileLocation newLocation) {
-        ArrayList<String> arr = memCache.getFilterKeys(oldKey);
-        if (arr != null) {
-            for (int a = 0; a < arr.size(); a++) {
-                String filter = arr.get(a);
-                String oldK = oldKey + "@" + filter;
-                String newK = newKey + "@" + filter;
-                performReplace(oldK, newK);
-                NotificationCenter.getInstance().postNotificationName(
-                        NotificationCenter.didReplacedPhotoInMemCache, oldK, newK, newLocation);
+    public static Bitmap loadBitmap(String path, Uri uri, float maxWidth, float maxHeight,
+                                    boolean useMaxScale) {
+        BitmapFactory.Options bmOptions = new BitmapFactory.Options();
+        bmOptions.inJustDecodeBounds = true;
+        InputStream inputStream = null;
+
+        if (path == null && uri != null && uri.getScheme() != null) {
+            String imageFilePath = null;
+            if (uri.getScheme().contains("file")) {
+                path = uri.getPath();
+            } else {
+                try {
+                    path = AndroidUtilities.getPath(uri);
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                }
             }
-        } else {
-            performReplace(oldKey, newKey);
-            NotificationCenter.getInstance().postNotificationName(
-                    NotificationCenter.didReplacedPhotoInMemCache, oldKey, newKey, newLocation);
         }
+
+        if (path != null) {
+            BitmapFactory.decodeFile(path, bmOptions);
+        } else if (uri != null) {
+            boolean error = false;
+            try {
+                inputStream = Gallery.applicationContext.getContentResolver()
+                        .openInputStream(uri);
+                BitmapFactory.decodeStream(inputStream, null, bmOptions);
+                inputStream.close();
+                inputStream = Gallery.applicationContext.getContentResolver()
+                        .openInputStream(uri);
+            } catch (Throwable e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+        float photoW = bmOptions.outWidth;
+        float photoH = bmOptions.outHeight;
+        float scaleFactor = useMaxScale ? Math.max(photoW / maxWidth, photoH / maxHeight)
+                : Math.min(photoW / maxWidth, photoH / maxHeight);
+        if (scaleFactor < 1) {
+            scaleFactor = 1;
+        }
+        bmOptions.inJustDecodeBounds = false;
+        bmOptions.inSampleSize = (int) scaleFactor;
+        bmOptions.inPurgeable = Build.VERSION.SDK_INT < 21;
+
+        String exifPath = null;
+        if (path != null) {
+            exifPath = path;
+        } else if (uri != null) {
+            exifPath = AndroidUtilities.getPath(uri);
+        }
+
+        Matrix matrix = null;
+
+        if (exifPath != null) {
+            ExifInterface exif;
+            try {
+                exif = new ExifInterface(exifPath);
+                int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, 1);
+                matrix = new Matrix();
+                switch (orientation) {
+                    case ExifInterface.ORIENTATION_ROTATE_90:
+                        matrix.postRotate(90);
+                        break;
+                    case ExifInterface.ORIENTATION_ROTATE_180:
+                        matrix.postRotate(180);
+                        break;
+                    case ExifInterface.ORIENTATION_ROTATE_270:
+                        matrix.postRotate(270);
+                        break;
+                }
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        }
+
+        Bitmap b = null;
+        if (path != null) {
+            try {
+                b = BitmapFactory.decodeFile(path, bmOptions);
+                if (b != null) {
+                    if (bmOptions.inPurgeable) {
+                        Utilities.pinBitmap(b);
+                    }
+                    Bitmap newBitmap = Bitmaps.createBitmap(b, 0, 0, b.getWidth(), b.getHeight(),
+                            matrix, true);
+                    if (newBitmap != b) {
+                        b.recycle();
+                        b = newBitmap;
+                    }
+                }
+            } catch (Throwable e) {
+                e.printStackTrace();
+                ImageLoader.getInstance().clearMemory();
+                try {
+                    if (b == null) {
+                        b = BitmapFactory.decodeFile(path, bmOptions);
+                        if (b != null && bmOptions.inPurgeable) {
+                            Utilities.pinBitmap(b);
+                        }
+                    }
+                    if (b != null) {
+                        Bitmap newBitmap = Bitmaps.createBitmap(b, 0, 0, b.getWidth(),
+                                b.getHeight(), matrix, true);
+                        if (newBitmap != b) {
+                            b.recycle();
+                            b = newBitmap;
+                        }
+                    }
+                } catch (Throwable e2) {
+                    e2.printStackTrace();
+                }
+            }
+        } else if (uri != null) {
+            try {
+                b = BitmapFactory.decodeStream(inputStream, null, bmOptions);
+                if (b != null) {
+                    if (bmOptions.inPurgeable) {
+                        Utilities.pinBitmap(b);
+                    }
+                    Bitmap newBitmap = Bitmaps.createBitmap(b, 0, 0, b.getWidth(), b.getHeight(),
+                            matrix, true);
+                    if (newBitmap != b) {
+                        b.recycle();
+                        b = newBitmap;
+                    }
+                }
+            } catch (Throwable e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    inputStream.close();
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        return b;
     }
 
-    public void replaceImageInCache(final String oldKey, final String newKey,
-            final FileLocation newLocation, boolean post) {
-        if (post) {
-            AndroidUtilities.runOnUIThread(new Runnable() {
-                @Override
-                public void run() {
-                    replaceImageInCacheInternal(oldKey, newKey, newLocation);
-                }
-            });
+    private static PhotoSize scaleAndSaveImageInternal(Bitmap bitmap, int w, int h, float photoW,
+                                                       float photoH, float scaleFactor, int quality, boolean cache, boolean scaleAnyway)
+            throws Exception {
+        Bitmap scaledBitmap;
+        if (scaleFactor > 1 || scaleAnyway) {
+            scaledBitmap = Bitmaps.createScaledBitmap(bitmap, w, h, true);
         } else {
-            replaceImageInCacheInternal(oldKey, newKey, newLocation);
+            scaledBitmap = bitmap;
         }
+
+        FileLocation.TL_fileLocation location = new FileLocation.TL_fileLocation();
+        location.volume_id = Integer.MIN_VALUE;
+        location.dc_id = Integer.MIN_VALUE;
+        PhotoSize size = new PhotoSize.TL_photoSize();
+        size.location = location;
+        size.w = scaledBitmap.getWidth();
+        size.h = scaledBitmap.getHeight();
+        if (size.w <= 100 && size.h <= 100) {
+            size.type = "s";
+        } else if (size.w <= 320 && size.h <= 320) {
+            size.type = "m";
+        } else if (size.w <= 800 && size.h <= 800) {
+            size.type = "x";
+        } else if (size.w <= 1280 && size.h <= 1280) {
+            size.type = "y";
+        } else {
+            size.type = "w";
+        }
+
+        String fileName = location.volume_id + "_" + location.local_id + ".jpg";
+        final File cacheFile = new File(
+                FileLoader.getInstance().getDirectory(FileLoader.MEDIA_DIR_CACHE), fileName);
+        FileOutputStream stream = new FileOutputStream(cacheFile);
+        scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, stream);
+        if (cache) {
+            ByteArrayOutputStream stream2 = new ByteArrayOutputStream();
+            scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, stream2);
+            size.bytes = stream2.toByteArray();
+            size.size = size.bytes.length;
+            stream2.close();
+        } else {
+            size.size = (int) stream.getChannel().size();
+        }
+        stream.close();
+        if (scaledBitmap != bitmap) {
+            scaledBitmap.recycle();
+        }
+
+        return size;
     }
 
     public void putImageToCache(BitmapDrawable bitmap, String key) {
         memCache.put(key, bitmap);
     }
 
-    private void generateThumb(int mediaType, File originalPath, FileLocation thumbLocation,
-            String filter) {
-        if (mediaType != FileLoader.MEDIA_DIR_IMAGE && mediaType != FileLoader.MEDIA_DIR_VIDEO
-                && mediaType != FileLoader.MEDIA_DIR_DOCUMENT || originalPath == null
-                || thumbLocation == null) {
-            return;
-        }
-        String name = FileLoader.getAttachFileName(thumbLocation);
-        ThumbGenerateTask task = thumbGenerateTasks.get(name);
-        if (task == null) {
-            task = new ThumbGenerateTask(mediaType, originalPath, thumbLocation, filter);
-            thumbGeneratingQueue.postRunnable(task);
-        }
+    public static PhotoSize scaleAndSaveImage(Bitmap bitmap, float maxWidth, float maxHeight,
+                                              int quality, boolean cache) {
+        return scaleAndSaveImage(bitmap, maxWidth, maxHeight, quality, cache, 0, 0);
     }
 
-    private void createLoadOperationForImageReceiver(final ImageReceiver imageReceiver,
-            final String key, final String url, final String ext, final TLObject imageLocation,
-            final String httpLocation, final String filter, final int size, final boolean cacheOnly,
-            final int thumb) {
-        if (imageReceiver == null || url == null || key == null) {
-            return;
+    public static PhotoSize scaleAndSaveImage(Bitmap bitmap, float maxWidth, float maxHeight,
+                                              int quality, boolean cache, int minWidth, int minHeight) {
+        if (bitmap == null) {
+            return null;
         }
-        Integer TAG = imageReceiver.getTag(thumb != 0);
-        if (TAG == null) {
-            imageReceiver.setTag(TAG = lastImageNum, thumb != 0);
-            lastImageNum++;
-            if (lastImageNum == Integer.MAX_VALUE) {
-                lastImageNum = 0;
+        float photoW = bitmap.getWidth();
+        float photoH = bitmap.getHeight();
+        if (photoW == 0 || photoH == 0) {
+            return null;
+        }
+        boolean scaleAnyway = false;
+        float scaleFactor = Math.max(photoW / maxWidth, photoH / maxHeight);
+        if (minWidth != 0 && minHeight != 0 && (photoW < minWidth || photoH < minHeight)) {
+            if (photoW < minWidth && photoH > minHeight) {
+                scaleFactor = photoW / minWidth;
+            } else if (photoW > minWidth && photoH < minHeight) {
+                scaleFactor = photoH / minHeight;
+            } else {
+                scaleFactor = Math.max(photoW / minWidth, photoH / minHeight);
+            }
+            scaleAnyway = true;
+        }
+        int w = (int) (photoW / scaleFactor);
+        int h = (int) (photoH / scaleFactor);
+        if (h == 0 || w == 0) {
+            return null;
+        }
+
+        try {
+            return scaleAndSaveImageInternal(bitmap, w, h, photoW, photoH, scaleFactor, quality,
+                    cache, scaleAnyway);
+        } catch (Throwable e) {
+            e.printStackTrace();
+            ImageLoader.getInstance().clearMemory();
+            System.gc();
+            try {
+                return scaleAndSaveImageInternal(bitmap, w, h, photoW, photoH, scaleFactor, quality,
+                        cache, scaleAnyway);
+            } catch (Throwable e2) {
+                e2.printStackTrace();
+                return null;
             }
         }
-
-        final Integer finalTag = TAG;
-        final boolean finalIsNeedsQualityThumb = imageReceiver.isNeedsQualityThumb();
-        final boolean shouldGenerateQualityThumb = imageReceiver.isShouldGenerateQualityThumb();
-        imageLoadQueue.postRunnable(new Runnable() {
-            @Override
-            public void run() {
-                boolean added = false;
-                if (thumb != 2) {
-                    CacheImage alreadyLoadingUrl = imageLoadingByUrl.get(url);
-                    CacheImage alreadyLoadingCache = imageLoadingByKeys.get(key);
-                    CacheImage alreadyLoadingImage = imageLoadingByTag.get(finalTag);
-                    if (alreadyLoadingImage != null) {
-                        if (alreadyLoadingImage == alreadyLoadingUrl
-                                || alreadyLoadingImage == alreadyLoadingCache) {
-                            added = true;
-                        } else {
-                            alreadyLoadingImage.removeImageReceiver(imageReceiver);
-                        }
-                    }
-
-                    if (!added && alreadyLoadingCache != null) {
-                        alreadyLoadingCache.addImageReceiver(imageReceiver);
-                        added = true;
-                    }
-                    if (!added && alreadyLoadingUrl != null) {
-                        alreadyLoadingUrl.addImageReceiver(imageReceiver);
-                        added = true;
-                    }
-                }
-
-                if (!added) {
-                    boolean onlyCache = false;
-                    boolean isQuality = false;
-                    File cacheFile = null;
-
-                    if (httpLocation != null) {
-                        if (!httpLocation.startsWith("http")) {
-                            onlyCache = true;
-                            if (httpLocation.startsWith("thumb://")) {
-                                int idx = httpLocation.indexOf(":", 8);
-                                if (idx >= 0) {
-                                    cacheFile = new File(httpLocation.substring(idx + 1));
-                                }
-                            } else if (httpLocation.startsWith("vthumb://")) {
-                                int idx = httpLocation.indexOf(":", 9);
-                                if (idx >= 0) {
-                                    cacheFile = new File(httpLocation.substring(idx + 1));
-                                }
-                            } else {
-                                cacheFile = new File(httpLocation);
-                            }
-                        }
-                    } else if (thumb != 0) {
-                        if (finalIsNeedsQualityThumb) {
-                            cacheFile = new File(FileLoader.getInstance()
-                                    .getDirectory(FileLoader.MEDIA_DIR_CACHE), "q_" + url);
-                            if (!cacheFile.exists()) {
-                                cacheFile = null;
-                            }
-                        }
-                    }
-
-                    if (thumb != 2) {
-                        CacheImage img = new CacheImage();
-                        if (httpLocation != null && !httpLocation.startsWith("vthumb")
-                                && !httpLocation.startsWith("thumb")
-                                && (httpLocation.endsWith("mp4") || httpLocation.endsWith("gif"))
-                                || imageLocation instanceof Document) {
-                            img.animatedFile = true;
-                        }
-
-                        if (cacheFile == null) {
-                            if (cacheOnly || size == 0 || httpLocation != null) {
-                                cacheFile = new File(FileLoader.getInstance()
-                                        .getDirectory(FileLoader.MEDIA_DIR_CACHE), url);
-                            } else if (imageLocation instanceof Document) {
-                                cacheFile = new File(FileLoader.getInstance()
-                                        .getDirectory(FileLoader.MEDIA_DIR_DOCUMENT), url);
-                            } else {
-                                cacheFile = new File(FileLoader.getInstance()
-                                        .getDirectory(FileLoader.MEDIA_DIR_IMAGE), url);
-                            }
-                        }
-
-                        img.thumb = thumb != 0;
-                        img.key = key;
-                        img.filter = filter;
-                        img.httpUrl = httpLocation;
-                        img.ext = ext;
-                        img.addImageReceiver(imageReceiver);
-                        if (onlyCache || cacheFile.exists()) {
-                            img.finalFilePath = cacheFile;
-                            img.cacheTask = new CacheOutTask(img);
-                            imageLoadingByKeys.put(key, img);
-                            if (thumb != 0) {
-                                cacheThumbOutQueue.postRunnable(img.cacheTask);
-                            } else {
-                                cacheOutQueue.postRunnable(img.cacheTask);
-                            }
-                        } else {
-                            img.url = url;
-                            img.location = imageLocation;
-                            imageLoadingByUrl.put(url, img);
-                            if (httpLocation == null) {
-                                if (imageLocation instanceof FileLocation) {
-                                    FileLocation location = (FileLocation) imageLocation;
-                                    FileLoader.getInstance().loadFile(location, ext, size,
-                                            size == 0 || location.key != null || cacheOnly);
-                                } else if (imageLocation instanceof Document) {
-                                    FileLoader.getInstance().loadFile((Document) imageLocation,
-                                            true, cacheOnly);
-                                }
-                            } else {
-                                String file = Utilities.MD5(httpLocation);
-                                File cacheDir = FileLoader.getInstance()
-                                        .getDirectory(FileLoader.MEDIA_DIR_CACHE);
-                                img.tempFilePath = new File(cacheDir, file + "_temp.jpg");
-                                img.finalFilePath = cacheFile;
-                                img.httpTask = new HttpImageTask(img, size);
-                                httpTasks.add(img.httpTask);
-                            }
-                        }
-                    }
-                }
-            }
-        });
     }
 
     public void loadImageForImageReceiver(ImageReceiver imageReceiver) {
@@ -1824,146 +1875,23 @@ public class ImageLoader {
         });
     }
 
-    public static Bitmap loadBitmap(String path, Uri uri, float maxWidth, float maxHeight,
-            boolean useMaxScale) {
-        BitmapFactory.Options bmOptions = new BitmapFactory.Options();
-        bmOptions.inJustDecodeBounds = true;
-        InputStream inputStream = null;
-
-        if (path == null && uri != null && uri.getScheme() != null) {
-            String imageFilePath = null;
-            if (uri.getScheme().contains("file")) {
-                path = uri.getPath();
-            } else {
-                try {
-                    path = AndroidUtilities.getPath(uri);
-                } catch (Throwable e) {
-                    e.printStackTrace();
-                }
+    private void replaceImageInCacheInternal(final String oldKey, final String newKey,
+                                             final FileLocation newLocation) {
+        ArrayList<String> arr = memCache.getFilterKeys(oldKey);
+        if (arr != null) {
+            for (int a = 0; a < arr.size(); a++) {
+                String filter = arr.get(a);
+                String oldK = oldKey + "@" + filter;
+                String newK = newKey + "@" + filter;
+                performReplace(oldK, newK);
+                NotificationCenter.getInstance().postNotificationName(
+                        NotificationCenter.didReplacedPhotoInMemCache, oldK, newK, newLocation);
             }
+        } else {
+            performReplace(oldKey, newKey);
+            NotificationCenter.getInstance().postNotificationName(
+                    NotificationCenter.didReplacedPhotoInMemCache, oldKey, newKey, newLocation);
         }
-
-        if (path != null) {
-            BitmapFactory.decodeFile(path, bmOptions);
-        } else if (uri != null) {
-            boolean error = false;
-            try {
-                inputStream = Gallery.applicationContext.getContentResolver()
-                        .openInputStream(uri);
-                BitmapFactory.decodeStream(inputStream, null, bmOptions);
-                inputStream.close();
-                inputStream = Gallery.applicationContext.getContentResolver()
-                        .openInputStream(uri);
-            } catch (Throwable e) {
-                e.printStackTrace();
-                return null;
-            }
-        }
-        float photoW = bmOptions.outWidth;
-        float photoH = bmOptions.outHeight;
-        float scaleFactor = useMaxScale ? Math.max(photoW / maxWidth, photoH / maxHeight)
-                : Math.min(photoW / maxWidth, photoH / maxHeight);
-        if (scaleFactor < 1) {
-            scaleFactor = 1;
-        }
-        bmOptions.inJustDecodeBounds = false;
-        bmOptions.inSampleSize = (int) scaleFactor;
-        bmOptions.inPurgeable = Build.VERSION.SDK_INT < 21;
-
-        String exifPath = null;
-        if (path != null) {
-            exifPath = path;
-        } else if (uri != null) {
-            exifPath = AndroidUtilities.getPath(uri);
-        }
-
-        Matrix matrix = null;
-
-        if (exifPath != null) {
-            ExifInterface exif;
-            try {
-                exif = new ExifInterface(exifPath);
-                int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, 1);
-                matrix = new Matrix();
-                switch (orientation) {
-                    case ExifInterface.ORIENTATION_ROTATE_90:
-                        matrix.postRotate(90);
-                        break;
-                    case ExifInterface.ORIENTATION_ROTATE_180:
-                        matrix.postRotate(180);
-                        break;
-                    case ExifInterface.ORIENTATION_ROTATE_270:
-                        matrix.postRotate(270);
-                        break;
-                }
-            } catch (Throwable e) {
-                e.printStackTrace();
-            }
-        }
-
-        Bitmap b = null;
-        if (path != null) {
-            try {
-                b = BitmapFactory.decodeFile(path, bmOptions);
-                if (b != null) {
-                    if (bmOptions.inPurgeable) {
-                        Utilities.pinBitmap(b);
-                    }
-                    Bitmap newBitmap = Bitmaps.createBitmap(b, 0, 0, b.getWidth(), b.getHeight(),
-                            matrix, true);
-                    if (newBitmap != b) {
-                        b.recycle();
-                        b = newBitmap;
-                    }
-                }
-            } catch (Throwable e) {
-                e.printStackTrace();
-                ImageLoader.getInstance().clearMemory();
-                try {
-                    if (b == null) {
-                        b = BitmapFactory.decodeFile(path, bmOptions);
-                        if (b != null && bmOptions.inPurgeable) {
-                            Utilities.pinBitmap(b);
-                        }
-                    }
-                    if (b != null) {
-                        Bitmap newBitmap = Bitmaps.createBitmap(b, 0, 0, b.getWidth(),
-                                b.getHeight(), matrix, true);
-                        if (newBitmap != b) {
-                            b.recycle();
-                            b = newBitmap;
-                        }
-                    }
-                } catch (Throwable e2) {
-                    e2.printStackTrace();
-                }
-            }
-        } else if (uri != null) {
-            try {
-                b = BitmapFactory.decodeStream(inputStream, null, bmOptions);
-                if (b != null) {
-                    if (bmOptions.inPurgeable) {
-                        Utilities.pinBitmap(b);
-                    }
-                    Bitmap newBitmap = Bitmaps.createBitmap(b, 0, 0, b.getWidth(), b.getHeight(),
-                            matrix, true);
-                    if (newBitmap != b) {
-                        b.recycle();
-                        b = newBitmap;
-                    }
-                }
-            } catch (Throwable e) {
-                e.printStackTrace();
-            } finally {
-                try {
-                    inputStream.close();
-                } catch (Throwable e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-        return b;
     }
 
     public static void fillPhotoSizeWithBytes(PhotoSize photoSize) {
@@ -1983,105 +1911,177 @@ public class ImageLoader {
         }
     }
 
-    private static PhotoSize scaleAndSaveImageInternal(Bitmap bitmap, int w, int h, float photoW,
-            float photoH, float scaleFactor, int quality, boolean cache, boolean scaleAnyway)
-            throws Exception {
-        Bitmap scaledBitmap;
-        if (scaleFactor > 1 || scaleAnyway) {
-            scaledBitmap = Bitmaps.createScaledBitmap(bitmap, w, h, true);
+    public void replaceImageInCache(final String oldKey, final String newKey,
+                                    final FileLocation newLocation, boolean post) {
+        if (post) {
+            AndroidUtilities.runOnUIThread(new Runnable() {
+                @Override
+                public void run() {
+                    replaceImageInCacheInternal(oldKey, newKey, newLocation);
+                }
+            });
         } else {
-            scaledBitmap = bitmap;
+            replaceImageInCacheInternal(oldKey, newKey, newLocation);
         }
-
-        FileLocation.TL_fileLocation location = new FileLocation.TL_fileLocation();
-        location.volume_id = Integer.MIN_VALUE;
-        location.dc_id = Integer.MIN_VALUE;
-        PhotoSize size = new PhotoSize.TL_photoSize();
-        size.location = location;
-        size.w = scaledBitmap.getWidth();
-        size.h = scaledBitmap.getHeight();
-        if (size.w <= 100 && size.h <= 100) {
-            size.type = "s";
-        } else if (size.w <= 320 && size.h <= 320) {
-            size.type = "m";
-        } else if (size.w <= 800 && size.h <= 800) {
-            size.type = "x";
-        } else if (size.w <= 1280 && size.h <= 1280) {
-            size.type = "y";
-        } else {
-            size.type = "w";
-        }
-
-        String fileName = location.volume_id + "_" + location.local_id + ".jpg";
-        final File cacheFile = new File(
-                FileLoader.getInstance().getDirectory(FileLoader.MEDIA_DIR_CACHE), fileName);
-        FileOutputStream stream = new FileOutputStream(cacheFile);
-        scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, stream);
-        if (cache) {
-            ByteArrayOutputStream stream2 = new ByteArrayOutputStream();
-            scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, stream2);
-            size.bytes = stream2.toByteArray();
-            size.size = size.bytes.length;
-            stream2.close();
-        } else {
-            size.size = (int) stream.getChannel().size();
-        }
-        stream.close();
-        if (scaledBitmap != bitmap) {
-            scaledBitmap.recycle();
-        }
-
-        return size;
     }
 
-    public static PhotoSize scaleAndSaveImage(Bitmap bitmap, float maxWidth, float maxHeight,
-            int quality, boolean cache) {
-        return scaleAndSaveImage(bitmap, maxWidth, maxHeight, quality, cache, 0, 0);
+    private void generateThumb(int mediaType, File originalPath, FileLocation thumbLocation,
+                               String filter) {
+        if (mediaType != FileLoader.MEDIA_DIR_IMAGE && mediaType != FileLoader.MEDIA_DIR_VIDEO
+                && mediaType != FileLoader.MEDIA_DIR_DOCUMENT || originalPath == null
+                || thumbLocation == null) {
+            return;
+        }
+        String name = FileLoader.getAttachFileName(thumbLocation);
+        ThumbGenerateTask task = thumbGenerateTasks.get(name);
+        if (task == null) {
+            task = new ThumbGenerateTask(mediaType, originalPath, thumbLocation, filter);
+            thumbGeneratingQueue.postRunnable(task);
+        }
     }
 
-    public static PhotoSize scaleAndSaveImage(Bitmap bitmap, float maxWidth, float maxHeight,
-            int quality, boolean cache, int minWidth, int minHeight) {
-        if (bitmap == null) {
-            return null;
+    private void createLoadOperationForImageReceiver(final ImageReceiver imageReceiver,
+                                                     final String key, final String url, final String ext, final TLObject imageLocation,
+                                                     final String httpLocation, final String filter, final int size, final boolean cacheOnly,
+                                                     final int thumb) {
+        if (imageReceiver == null || url == null || key == null) {
+            return;
         }
-        float photoW = bitmap.getWidth();
-        float photoH = bitmap.getHeight();
-        if (photoW == 0 || photoH == 0) {
-            return null;
-        }
-        boolean scaleAnyway = false;
-        float scaleFactor = Math.max(photoW / maxWidth, photoH / maxHeight);
-        if (minWidth != 0 && minHeight != 0 && (photoW < minWidth || photoH < minHeight)) {
-            if (photoW < minWidth && photoH > minHeight) {
-                scaleFactor = photoW / minWidth;
-            } else if (photoW > minWidth && photoH < minHeight) {
-                scaleFactor = photoH / minHeight;
-            } else {
-                scaleFactor = Math.max(photoW / minWidth, photoH / minHeight);
+        Integer TAG = imageReceiver.getTag(thumb != 0);
+        if (TAG == null) {
+            imageReceiver.setTag(TAG = lastImageNum, thumb != 0);
+            lastImageNum++;
+            if (lastImageNum == Integer.MAX_VALUE) {
+                lastImageNum = 0;
             }
-            scaleAnyway = true;
-        }
-        int w = (int) (photoW / scaleFactor);
-        int h = (int) (photoH / scaleFactor);
-        if (h == 0 || w == 0) {
-            return null;
         }
 
-        try {
-            return scaleAndSaveImageInternal(bitmap, w, h, photoW, photoH, scaleFactor, quality,
-                    cache, scaleAnyway);
-        } catch (Throwable e) {
-            e.printStackTrace();
-            ImageLoader.getInstance().clearMemory();
-            System.gc();
-            try {
-                return scaleAndSaveImageInternal(bitmap, w, h, photoW, photoH, scaleFactor, quality,
-                        cache, scaleAnyway);
-            } catch (Throwable e2) {
-                e2.printStackTrace();
-                return null;
+        final Integer finalTag = TAG;
+        final boolean finalIsNeedsQualityThumb = imageReceiver.isNeedsQualityThumb();
+        final boolean shouldGenerateQualityThumb = imageReceiver.isShouldGenerateQualityThumb();
+        imageLoadQueue.postRunnable(new Runnable() {
+            @Override
+            public void run() {
+                boolean added = false;
+                if (thumb != 2) {
+                    CacheImage alreadyLoadingUrl = imageLoadingByUrl.get(url);
+                    CacheImage alreadyLoadingCache = imageLoadingByKeys.get(key);
+                    CacheImage alreadyLoadingImage = imageLoadingByTag.get(finalTag);
+                    if (alreadyLoadingImage != null) {
+                        if (alreadyLoadingImage == alreadyLoadingUrl
+                                || alreadyLoadingImage == alreadyLoadingCache) {
+                            added = true;
+                        } else {
+                            alreadyLoadingImage.removeImageReceiver(imageReceiver);
+                        }
+                    }
+
+                    if (!added && alreadyLoadingCache != null) {
+                        alreadyLoadingCache.addImageReceiver(imageReceiver);
+                        added = true;
+                    }
+                    if (!added && alreadyLoadingUrl != null) {
+                        alreadyLoadingUrl.addImageReceiver(imageReceiver);
+                        added = true;
+                    }
+                }
+
+                if (!added) {
+                    boolean onlyCache = false;
+                    boolean isQuality = false;
+                    File cacheFile = null;
+
+                    if (httpLocation != null) {
+                        if (!httpLocation.startsWith("http")) {
+                            onlyCache = true;
+                            if (httpLocation.startsWith("thumb://")) {
+                                int idx = httpLocation.indexOf(":", 8);
+                                if (idx >= 0) {
+                                    cacheFile = new File(httpLocation.substring(idx + 1));
+                                }
+                            } else if (httpLocation.startsWith("vthumb://")) {
+                                int idx = httpLocation.indexOf(":", 9);
+                                if (idx >= 0) {
+                                    cacheFile = new File(httpLocation.substring(idx + 1));
+                                }
+                            } else {
+                                cacheFile = new File(httpLocation);
+                            }
+                        }
+                    } else if (thumb != 0) {
+                        if (finalIsNeedsQualityThumb) {
+                            cacheFile = new File(FileLoader.getInstance()
+                                    .getDirectory(FileLoader.MEDIA_DIR_CACHE), "q_" + url);
+                            if (!cacheFile.exists()) {
+                                cacheFile = null;
+                            }
+                        }
+                    }
+
+                    if (thumb != 2) {
+                        CacheImage img = new CacheImage();
+                        if (httpLocation != null && !httpLocation.startsWith("vthumb")
+                                && !httpLocation.startsWith("thumb")
+                                && (httpLocation.endsWith("mp4") || httpLocation.endsWith("gif"))
+                                || imageLocation instanceof Document) {
+                            img.animatedFile = true;
+                        }
+
+                        if (cacheFile == null) {
+                            if (cacheOnly || size == 0 || httpLocation != null) {
+                                cacheFile = new File(FileLoader.getInstance()
+                                        .getDirectory(FileLoader.MEDIA_DIR_CACHE), url);
+                            } else if (imageLocation instanceof Document) {
+                                cacheFile = new File(FileLoader.getInstance()
+                                        .getDirectory(FileLoader.MEDIA_DIR_DOCUMENT), url);
+                            } else {
+                                cacheFile = new File(FileLoader.getInstance()
+                                        .getDirectory(FileLoader.MEDIA_DIR_IMAGE), url);
+                            }
+                        }
+
+                        img.thumb = thumb != 0;
+                        img.key = key;
+                        img.filter = filter;
+                        img.httpUrl = httpLocation;
+                        img.ext = ext;
+                        img.addImageReceiver(imageReceiver);
+                        if (onlyCache || cacheFile.exists()) {
+                            img.finalFilePath = cacheFile;
+                            img.cacheTask = new CacheOutTask(img);
+                            imageLoadingByKeys.put(key, img);
+                            if (thumb != 0) {
+                                cacheThumbOutQueue.postRunnable(img.cacheTask);
+                            } else {
+                                cacheOutQueue.postRunnable(img.cacheTask);
+                            }
+                        } else {
+                            img.url = url;
+                            img.location = imageLocation;
+                            imageLoadingByUrl.put(url, img);
+                            if (httpLocation == null) {
+                                if (imageLocation instanceof FileLocation) {
+                                    FileLocation location = (FileLocation) imageLocation;
+                                    FileLoader.getInstance().loadFile(location, ext, size,
+                                            size == 0 || location.key != null || cacheOnly);
+                                } else if (imageLocation instanceof Document) {
+                                    FileLoader.getInstance().loadFile((Document) imageLocation,
+                                            true, cacheOnly);
+                                }
+                            } else {
+                                String file = Utilities.MD5(httpLocation);
+                                File cacheDir = FileLoader.getInstance()
+                                        .getDirectory(FileLoader.MEDIA_DIR_CACHE);
+                                img.tempFilePath = new File(cacheDir, file + "_temp.jpg");
+                                img.finalFilePath = cacheFile;
+                                img.httpTask = new HttpImageTask(img, size);
+                                httpTasks.add(img.httpTask);
+                            }
+                        }
+                    }
+                }
             }
-        }
+        });
     }
 
     public static String getHttpUrlExtension(String url, String defaultExt) {

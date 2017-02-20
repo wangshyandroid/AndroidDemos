@@ -107,12 +107,12 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
     }
 
     public void setImage(TLObject path, String filter, Drawable thumb, String ext,
-            boolean cacheOnly) {
+                         boolean cacheOnly) {
         setImage(path, null, filter, thumb, null, null, 0, ext, cacheOnly);
     }
 
     public void setImage(TLObject path, String filter, Drawable thumb, int size, String ext,
-            boolean cacheOnly) {
+                         boolean cacheOnly) {
         setImage(path, null, filter, thumb, null, null, size, ext, cacheOnly);
     }
 
@@ -121,19 +121,19 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
     }
 
     public void setImage(TLObject fileLocation, String filter, FileLocation thumbLocation,
-            String thumbFilter, String ext, boolean cacheOnly) {
+                         String thumbFilter, String ext, boolean cacheOnly) {
         setImage(fileLocation, null, filter, null, thumbLocation, thumbFilter, 0, ext, cacheOnly);
     }
 
     public void setImage(TLObject fileLocation, String filter, FileLocation thumbLocation,
-            String thumbFilter, int size, String ext, boolean cacheOnly) {
+                         String thumbFilter, int size, String ext, boolean cacheOnly) {
         setImage(fileLocation, null, filter, null, thumbLocation, thumbFilter, size, ext,
                 cacheOnly);
     }
 
     public void setImage(TLObject fileLocation, String httpUrl, String filter, Drawable thumb,
-            FileLocation thumbLocation, String thumbFilter, int size, String ext,
-            boolean cacheOnly) {
+                         FileLocation thumbLocation, String thumbFilter, int size, String ext,
+                         boolean cacheOnly) {
         if (setImageBackup != null) {
             setImageBackup.fileLocation = null;
             setImageBackup.httpUrl = null;
@@ -143,7 +143,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
 
         if ((fileLocation == null && httpUrl == null && thumbLocation == null)
                 || (fileLocation != null && !(fileLocation instanceof FileLocation.TL_fileLocation)
-                        && !(fileLocation instanceof FileLocation.TL_fileEncryptedLocation))) {
+                && !(fileLocation instanceof FileLocation.TL_fileEncryptedLocation))) {
             recycleBitmap(null, false);
             recycleBitmap(null, true);
             currentKey = null;
@@ -363,7 +363,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
                 NotificationCenter.didReplacedPhotoInMemCache);
         if (setImageBackup != null
                 && (setImageBackup.fileLocation != null || setImageBackup.httpUrl != null
-                        || setImageBackup.thumbLocation != null || setImageBackup.thumb != null)) {
+                || setImageBackup.thumbLocation != null || setImageBackup.thumb != null)) {
             setImage(setImageBackup.fileLocation, setImageBackup.httpUrl, setImageBackup.filter,
                     setImageBackup.thumb, setImageBackup.thumbLocation, setImageBackup.thumbFilter,
                     setImageBackup.size, setImageBackup.ext, setImageBackup.cacheOnly);
@@ -931,7 +931,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
     }
 
     public boolean setImageBitmapByKey(BitmapDrawable bitmap, String key, boolean thumb,
-            boolean memCache) {
+                                       boolean memCache) {
         if (bitmap == null || key == null) {
             return false;
         }
@@ -981,9 +981,9 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
             }
         } else if (currentThumb == null
                 && (currentImage == null
-                        || (currentImage instanceof AnimatedFileDrawable
-                                && !((AnimatedFileDrawable) currentImage).hasBitmap())
-                        || forcePreview)) {
+                || (currentImage instanceof AnimatedFileDrawable
+                && !((AnimatedFileDrawable) currentImage).hasBitmap())
+                || forcePreview)) {
             if (currentThumbKey == null || !key.equals(currentThumbKey)) {
                 return false;
             }

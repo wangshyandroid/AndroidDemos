@@ -62,28 +62,28 @@ public class Theme {
                 };
             }
             ColorStateList colorStateList = new ColorStateList(
-                    new int[][] {
-                            new int[] {}
+                    new int[][]{
+                            new int[]{}
                     },
-                    new int[] {
+                    new int[]{
                             color
                     });
             return new RippleDrawable(colorStateList, null, maskDrawable);
         } else {
             StateListDrawable stateListDrawable = new StateListDrawable();
-            stateListDrawable.addState(new int[] {
+            stateListDrawable.addState(new int[]{
                     android.R.attr.state_pressed
             }, new ColorDrawable(color));
-            stateListDrawable.addState(new int[] {
+            stateListDrawable.addState(new int[]{
                     android.R.attr.state_focused
             }, new ColorDrawable(color));
-            stateListDrawable.addState(new int[] {
+            stateListDrawable.addState(new int[]{
                     android.R.attr.state_selected
             }, new ColorDrawable(color));
-            stateListDrawable.addState(new int[] {
+            stateListDrawable.addState(new int[]{
                     android.R.attr.state_activated
             }, new ColorDrawable(color));
-            stateListDrawable.addState(new int[] {}, new ColorDrawable(0x00000000));
+            stateListDrawable.addState(new int[]{}, new ColorDrawable(0x00000000));
             return stateListDrawable;
         }
     }

@@ -13,7 +13,7 @@ public class Photo extends TLObject {
     public ArrayList<PhotoSize> sizes = new ArrayList<>();
 
     public static Photo TLdeserialize(AbstractSerializedData stream, int constructor,
-            boolean exception) {
+                                      boolean exception) {
         Photo result = null;
         switch (constructor) {
             case 0x22b56751:

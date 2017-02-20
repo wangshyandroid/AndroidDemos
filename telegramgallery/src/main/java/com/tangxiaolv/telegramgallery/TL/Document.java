@@ -19,7 +19,7 @@ public class Document extends TLObject {
     public ArrayList<DocumentAttribute> attributes = new ArrayList<>();
 
     public static Document TLdeserialize(AbstractSerializedData stream, int constructor,
-            boolean exception) {
+                                         boolean exception) {
         Document result = null;
         switch (constructor) {
             case 0x55555556:

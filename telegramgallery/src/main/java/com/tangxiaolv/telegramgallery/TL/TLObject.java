@@ -31,7 +31,7 @@ public class TLObject {
     }
 
     public TLObject deserializeResponse(AbstractSerializedData stream, int constructor,
-            boolean exception) {
+                                        boolean exception) {
         return null;
     }
 

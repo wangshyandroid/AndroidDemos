@@ -9,7 +9,7 @@ public class TL_upload_file extends TLObject {
     public NativeByteBuffer bytes;
 
     public static TL_upload_file TLdeserialize(AbstractSerializedData stream, int constructor,
-            boolean exception) {
+                                               boolean exception) {
         if (TL_upload_file.constructor != constructor) {
             if (exception) {
                 throw new RuntimeException(

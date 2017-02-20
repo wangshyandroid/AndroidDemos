@@ -59,7 +59,9 @@ public class FileLoadOperation {
 
     public interface FileLoadOperationDelegate {
         void didFinishLoadingFile(FileLoadOperation operation, File finalFile);
+
         void didFailedLoadingFile(FileLoadOperation operation, int state);
+
         void didChangedLoadProgress(FileLoadOperation operation, float progress);
     }
 

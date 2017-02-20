@@ -94,9 +94,9 @@ public class PhotoPickerActivity extends BaseFragment
     private PhotoPickerActivityDelegate delegate;
 
     public PhotoPickerActivity(int type, int limitPickPhoto,
-            MediaController.AlbumEntry selectedAlbum,
-            HashMap<Integer, MediaController.PhotoEntry> selectedPhotos,
-            ArrayList<MediaController.SearchImage> recentImages, boolean onlyOnePhoto) {
+                               MediaController.AlbumEntry selectedAlbum,
+                               HashMap<Integer, MediaController.PhotoEntry> selectedPhotos,
+                               ArrayList<MediaController.SearchImage> recentImages, boolean onlyOnePhoto) {
         super();
         this.limitPickPhoto = limitPickPhoto;
         this.selectedAlbum = selectedAlbum;
@@ -234,14 +234,14 @@ public class PhotoPickerActivity extends BaseFragment
             listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
                 @Override
                 public boolean onItemLongClick(AdapterView<?> parent, View view, int position,
-                        long id) {
+                                               long id) {
                     if (searchResult.isEmpty() && lastSearchString == null) {
                         AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
                         builder.setTitle(LocaleController.getString("AppName", R.string.app_name));
                         builder.setMessage(
                                 LocaleController.getString("ClearSearch", R.string.ClearSearch));
                         builder.setPositiveButton(LocaleController
-                                .getString("ClearButton", R.string.ClearButton).toUpperCase(),
+                                        .getString("ClearButton", R.string.ClearButton).toUpperCase(),
                                 new DialogInterface.OnClickListener() {
                                     @Override
                                     public void onClick(DialogInterface dialogInterface, int i) {
@@ -301,7 +301,7 @@ public class PhotoPickerActivity extends BaseFragment
 
                 @Override
                 public void onScroll(AbsListView absListView, int firstVisibleItem,
-                        int visibleItemCount, int totalItemCount) {
+                                     int visibleItemCount, int totalItemCount) {
                     if (visibleItemCount != 0
                             && firstVisibleItem + visibleItemCount > totalItemCount - 2
                             && !searching) {
@@ -621,7 +621,7 @@ public class PhotoPickerActivity extends BaseFragment
 
             if (index != -1) {
                 setPhotoChecked(index);
-            }else{
+            } else {
                 MediaController.PhotoEntry existEntry = selectedPhotos.get(imageId);
                 if (existEntry != null) {
                     existEntry.sortindex = -1;

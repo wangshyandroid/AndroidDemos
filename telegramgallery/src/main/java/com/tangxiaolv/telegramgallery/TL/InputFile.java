@@ -8,7 +8,7 @@ public class InputFile extends TLObject {
     public String md5_checksum;
 
     public static InputFile TLdeserialize(AbstractSerializedData stream, int constructor,
-            boolean exception) {
+                                          boolean exception) {
         InputFile result = null;
         switch (constructor) {
             case 0xfa4f0bb5:

@@ -97,26 +97,94 @@ public class MediaController implements NotificationCenter.NotificationCenterDel
         }
     }
 
-    public static class PhotoEntry {
-        public int sortindex;
-        public int bucketId;
-        public int imageId;
-        public long dateTaken;
-        public String path;
-        public int orientation;
-        public String thumbPath;
-        public String imagePath;
-        public boolean isVideo;
-        public CharSequence caption;
+    public MediaController() {
+        try {
+            recordBufferSize = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT);
+            if (recordBufferSize <= 0) {
+                recordBufferSize = 1280;
+            }
+            playerBufferSize = AudioTrack.getMinBufferSize(48000, AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT);
+            if (playerBufferSize <= 0) {
+                playerBufferSize = 3840;
+            }
+            for (int a = 0; a < 5; a++) {
+                ByteBuffer buffer = ByteBuffer.allocateDirect(4096);
+                buffer.order(ByteOrder.nativeOrder());
+                recordBuffers.add(buffer);
+            }
+            for (int a = 0; a < 3; a++) {
+                freePlayerBuffers.add(new AudioBuffer(playerBufferSize));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
-        public PhotoEntry(int bucketId, int imageId, long dateTaken, String path, int orientation,
-                boolean isVideo) {
-            this.bucketId = bucketId;
-            this.imageId = imageId;
-            this.dateTaken = dateTaken;
-            this.path = path;
-            this.orientation = orientation;
-            this.isVideo = isVideo;
+        SharedPreferences preferences = Gallery.applicationContext
+                .getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
+        mobileDataDownloadMask = preferences.getInt("mobileDataDownloadMask",
+                AUTODOWNLOAD_MASK_PHOTO | AUTODOWNLOAD_MASK_AUDIO | AUTODOWNLOAD_MASK_MUSIC
+                        | AUTODOWNLOAD_MASK_GIF);
+        wifiDownloadMask = preferences.getInt("wifiDownloadMask", AUTODOWNLOAD_MASK_PHOTO
+                | AUTODOWNLOAD_MASK_AUDIO | AUTODOWNLOAD_MASK_MUSIC | AUTODOWNLOAD_MASK_GIF);
+        roamingDownloadMask = preferences.getInt("roamingDownloadMask", 0);
+
+        AndroidUtilities.runOnUIThread(new Runnable() {
+            @Override
+            public void run() {
+                NotificationCenter.getInstance().addObserver(MediaController.this,
+                        NotificationCenter.FileDidFailedLoad);
+                NotificationCenter.getInstance().addObserver(MediaController.this,
+                        NotificationCenter.didReceivedNewMessages);
+                NotificationCenter.getInstance().addObserver(MediaController.this,
+                        NotificationCenter.messagesDeleted);
+                NotificationCenter.getInstance().addObserver(MediaController.this,
+                        NotificationCenter.FileDidLoaded);
+                NotificationCenter.getInstance().addObserver(MediaController.this,
+                        NotificationCenter.FileLoadProgressChanged);
+                NotificationCenter.getInstance().addObserver(MediaController.this,
+                        NotificationCenter.FileUploadProgressChanged);
+                NotificationCenter.getInstance().addObserver(MediaController.this,
+                        NotificationCenter.removeAllMessagesFromDialog);
+                NotificationCenter.getInstance().addObserver(MediaController.this,
+                        NotificationCenter.musicDidLoaded);
+            }
+        });
+
+        if (Build.VERSION.SDK_INT >= 16) {
+            mediaProjections = new String[]{
+                    MediaStore.Images.ImageColumns.DATA,
+                    MediaStore.Images.ImageColumns.DISPLAY_NAME,
+                    MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
+                    MediaStore.Images.ImageColumns.DATE_TAKEN,
+                    MediaStore.Images.ImageColumns.TITLE,
+                    MediaStore.Images.ImageColumns.WIDTH,
+                    MediaStore.Images.ImageColumns.HEIGHT
+            };
+        } else {
+            mediaProjections = new String[]{
+                    MediaStore.Images.ImageColumns.DATA,
+                    MediaStore.Images.ImageColumns.DISPLAY_NAME,
+                    MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
+                    MediaStore.Images.ImageColumns.DATE_TAKEN,
+                    MediaStore.Images.ImageColumns.TITLE
+            };
+        }
+
+        try {
+            Gallery.applicationContext.getContentResolver().registerContentObserver(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false,
+                    new GalleryObserverExternal());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        try {
+            Gallery.applicationContext.getContentResolver().registerContentObserver(
+                    MediaStore.Images.Media.INTERNAL_CONTENT_URI, false,
+                    new GalleryObserverInternal());
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -280,95 +348,200 @@ public class MediaController implements NotificationCenter.NotificationCenterDel
         return localInstance;
     }
 
-    public MediaController() {
-        try {
-            recordBufferSize = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT);
-            if (recordBufferSize <= 0) {
-                recordBufferSize = 1280;
-            }
-            playerBufferSize = AudioTrack.getMinBufferSize(48000, AudioFormat.CHANNEL_OUT_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT);
-            if (playerBufferSize <= 0) {
-                playerBufferSize = 3840;
-            }
-            for (int a = 0; a < 5; a++) {
-                ByteBuffer buffer = ByteBuffer.allocateDirect(4096);
-                buffer.order(ByteOrder.nativeOrder());
-                recordBuffers.add(buffer);
-            }
-            for (int a = 0; a < 3; a++) {
-                freePlayerBuffers.add(new AudioBuffer(playerBufferSize));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        SharedPreferences preferences = Gallery.applicationContext
-                .getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
-        mobileDataDownloadMask = preferences.getInt("mobileDataDownloadMask",
-                AUTODOWNLOAD_MASK_PHOTO | AUTODOWNLOAD_MASK_AUDIO | AUTODOWNLOAD_MASK_MUSIC
-                        | AUTODOWNLOAD_MASK_GIF);
-        wifiDownloadMask = preferences.getInt("wifiDownloadMask", AUTODOWNLOAD_MASK_PHOTO
-                | AUTODOWNLOAD_MASK_AUDIO | AUTODOWNLOAD_MASK_MUSIC | AUTODOWNLOAD_MASK_GIF);
-        roamingDownloadMask = preferences.getInt("roamingDownloadMask", 0);
-
-        AndroidUtilities.runOnUIThread(new Runnable() {
+    public static void loadGalleryPhotosAlbums(final int guid, final String[] filterMimiType) {
+        Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
-                NotificationCenter.getInstance().addObserver(MediaController.this,
-                        NotificationCenter.FileDidFailedLoad);
-                NotificationCenter.getInstance().addObserver(MediaController.this,
-                        NotificationCenter.didReceivedNewMessages);
-                NotificationCenter.getInstance().addObserver(MediaController.this,
-                        NotificationCenter.messagesDeleted);
-                NotificationCenter.getInstance().addObserver(MediaController.this,
-                        NotificationCenter.FileDidLoaded);
-                NotificationCenter.getInstance().addObserver(MediaController.this,
-                        NotificationCenter.FileLoadProgressChanged);
-                NotificationCenter.getInstance().addObserver(MediaController.this,
-                        NotificationCenter.FileUploadProgressChanged);
-                NotificationCenter.getInstance().addObserver(MediaController.this,
-                        NotificationCenter.removeAllMessagesFromDialog);
-                NotificationCenter.getInstance().addObserver(MediaController.this,
-                        NotificationCenter.musicDidLoaded);
+                final ArrayList<AlbumEntry> albumsSorted = new ArrayList<>();
+                final ArrayList<AlbumEntry> videoAlbumsSorted = new ArrayList<>();
+                HashMap<Integer, AlbumEntry> albums = new HashMap<>();
+                AlbumEntry allPhotosAlbum = null;
+                String cameraFolder = Environment
+                        .getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+                        .getAbsolutePath() + "/" + "Camera/";
+
+                // 相当于我们常用sql where 后面的写法
+                StringBuilder selectionBuilder = null;
+                if (filterMimiType != null && filterMimiType.length > 0) {
+                    selectionBuilder = new StringBuilder();
+                    int length = filterMimiType.length;
+                    for (int i = 0; i < length; i++) {
+                        String mimeType = MediaStore.Files.FileColumns.MIME_TYPE;
+                        if (0 == i) {
+                            selectionBuilder.append(mimeType).append(" !=?");
+                        } else {
+                            selectionBuilder.append(" and ").append(mimeType).append(" !=?");
+                        }
+                    }
+                }
+                String selection = selectionBuilder == null ? null : selectionBuilder.toString();
+
+                Integer cameraAlbumId = null;
+                Integer cameraAlbumVideoId = null;
+
+                Cursor cursor = null;
+                try {
+                    cursor = MediaStore.Images.Media.query(
+                            Gallery.applicationContext.getContentResolver(),
+                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projectionPhotos,
+                            selection, filterMimiType,
+                            MediaStore.Images.Media.DATE_TAKEN + " DESC");
+                    if (cursor != null) {
+                        int imageIdColumn = cursor.getColumnIndex(MediaStore.Images.Media._ID);
+                        int bucketIdColumn = cursor
+                                .getColumnIndex(MediaStore.Images.Media.BUCKET_ID);
+                        int bucketNameColumn = cursor
+                                .getColumnIndex(MediaStore.Images.Media.BUCKET_DISPLAY_NAME);
+                        int dataColumn = cursor.getColumnIndex(MediaStore.Images.Media.DATA);
+                        int dateColumn = cursor
+                                .getColumnIndex(MediaStore.Images.Media.DATE_TAKEN);
+                        int orientationColumn = cursor
+                                .getColumnIndex(MediaStore.Images.Media.ORIENTATION);
+//                         int mimeTypeColumn = cursor.getColumnIndex(MediaStore.Files.FileColumns.MIME_TYPE);
+
+                        while (cursor.moveToNext()) {
+                            int imageId = cursor.getInt(imageIdColumn);
+                            int bucketId = cursor.getInt(bucketIdColumn);
+                            String bucketName = cursor.getString(bucketNameColumn);
+                            String path = cursor.getString(dataColumn);
+                            long dateTaken = cursor.getLong(dateColumn);
+                            int orientation = cursor.getInt(orientationColumn);
+//                             String mimeType = cursor.getString(mimeTypeColumn);
+
+                            if (path == null || path.length() == 0) {
+                                continue;
+                            }
+
+                            PhotoEntry photoEntry = new PhotoEntry(bucketId, imageId, dateTaken,
+                                    path, orientation, false);
+
+                            if (allPhotosAlbum == null) {
+                                allPhotosAlbum = new AlbumEntry(0, LocaleController.getString(
+                                        "AllPhotos", R.string.AllPhotos), photoEntry, false);
+                                albumsSorted.add(0, allPhotosAlbum);
+                            }
+                            if (allPhotosAlbum != null) {
+                                allPhotosAlbum.addPhoto(photoEntry);
+                            }
+
+                            AlbumEntry albumEntry = albums.get(bucketId);
+                            if (albumEntry == null) {
+                                albumEntry = new AlbumEntry(bucketId, bucketName, photoEntry,
+                                        false);
+                                albums.put(bucketId, albumEntry);
+                                if (cameraAlbumId == null && path.startsWith(cameraFolder)) {
+                                    if (albumsSorted.size() >= 2) {
+                                        albumsSorted.add(1, albumEntry);
+                                    } else {
+                                        albumsSorted.add(albumEntry);
+                                    }
+                                    cameraAlbumId = bucketId;
+                                } else {
+                                    albumsSorted.add(albumEntry);
+                                }
+                            }
+
+                            albumEntry.addPhoto(photoEntry);
+                        }
+                    }
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                } finally {
+                    if (cursor != null) {
+                        try {
+                            cursor.close();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+
+                try {
+                    albums.clear();
+                    cursor = null;
+                    AlbumEntry allVideosAlbum = null;
+                    cursor = MediaStore.Images.Media.query(
+                            Gallery.applicationContext.getContentResolver(),
+                            MediaStore.Video.Media.EXTERNAL_CONTENT_URI, projectionVideo, null,
+                            null, MediaStore.Video.Media.DATE_TAKEN + " DESC");
+                    if (cursor != null) {
+                        int imageIdColumn = cursor.getColumnIndex(MediaStore.Video.Media._ID);
+                        int bucketIdColumn = cursor
+                                .getColumnIndex(MediaStore.Video.Media.BUCKET_ID);
+                        int bucketNameColumn = cursor
+                                .getColumnIndex(MediaStore.Video.Media.BUCKET_DISPLAY_NAME);
+                        int dataColumn = cursor.getColumnIndex(MediaStore.Video.Media.DATA);
+                        int dateColumn = cursor
+                                .getColumnIndex(MediaStore.Video.Media.DATE_TAKEN);
+
+                        while (cursor.moveToNext()) {
+                            int imageId = cursor.getInt(imageIdColumn);
+                            int bucketId = cursor.getInt(bucketIdColumn);
+                            String bucketName = cursor.getString(bucketNameColumn);
+                            String path = cursor.getString(dataColumn);
+                            long dateTaken = cursor.getLong(dateColumn);
+
+                            if (path == null || path.length() == 0) {
+                                continue;
+                            }
+
+                            PhotoEntry photoEntry = new PhotoEntry(bucketId, imageId, dateTaken,
+                                    path, 0, true);
+
+                            if (allVideosAlbum == null) {
+                                allVideosAlbum = new AlbumEntry(0, LocaleController.getString(
+                                        "AllVideo", R.string.AllVideo), photoEntry, true);
+                                videoAlbumsSorted.add(0, allVideosAlbum);
+                            }
+                            if (allVideosAlbum != null) {
+                                allVideosAlbum.addPhoto(photoEntry);
+                            }
+
+                            AlbumEntry albumEntry = albums.get(bucketId);
+                            if (albumEntry == null) {
+                                albumEntry = new AlbumEntry(bucketId, bucketName, photoEntry,
+                                        true);
+                                albums.put(bucketId, albumEntry);
+                                if (cameraAlbumVideoId == null && cameraFolder != null
+                                        && path != null && path.startsWith(cameraFolder)) {
+                                    videoAlbumsSorted.add(0, albumEntry);
+                                    cameraAlbumVideoId = bucketId;
+                                } else {
+                                    videoAlbumsSorted.add(albumEntry);
+                                }
+                            }
+
+                            albumEntry.addPhoto(photoEntry);
+                        }
+                    }
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                } finally {
+                    if (cursor != null) {
+                        try {
+                            cursor.close();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+
+                final Integer cameraAlbumIdFinal = cameraAlbumId;
+                final Integer cameraAlbumVideoIdFinal = cameraAlbumVideoId;
+                final AlbumEntry allPhotosAlbumFinal = allPhotosAlbum;
+                AndroidUtilities.runOnUIThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        allPhotosAlbumEntry = allPhotosAlbumFinal;
+                        NotificationCenter.getInstance().postNotificationName(
+                                NotificationCenter.albumsDidLoaded, guid, albumsSorted,
+                                cameraAlbumIdFinal, videoAlbumsSorted, cameraAlbumVideoIdFinal);
+                    }
+                });
             }
         });
-
-        if (Build.VERSION.SDK_INT >= 16) {
-            mediaProjections = new String[] {
-                    MediaStore.Images.ImageColumns.DATA,
-                    MediaStore.Images.ImageColumns.DISPLAY_NAME,
-                    MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
-                    MediaStore.Images.ImageColumns.DATE_TAKEN,
-                    MediaStore.Images.ImageColumns.TITLE,
-                    MediaStore.Images.ImageColumns.WIDTH,
-                    MediaStore.Images.ImageColumns.HEIGHT
-            };
-        } else {
-            mediaProjections = new String[] {
-                    MediaStore.Images.ImageColumns.DATA,
-                    MediaStore.Images.ImageColumns.DISPLAY_NAME,
-                    MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
-                    MediaStore.Images.ImageColumns.DATE_TAKEN,
-                    MediaStore.Images.ImageColumns.TITLE
-            };
-        }
-
-        try {
-            Gallery.applicationContext.getContentResolver().registerContentObserver(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false,
-                    new GalleryObserverExternal());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        try {
-            Gallery.applicationContext.getContentResolver().registerContentObserver(
-                    MediaStore.Images.Media.INTERNAL_CONTENT_URI, false,
-                    new GalleryObserverInternal());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        thread.setPriority(Thread.MIN_PRIORITY);
+        thread.start();
     }
 
     public void cleanup() {
@@ -523,200 +696,27 @@ public class MediaController implements NotificationCenter.NotificationCenterDel
         }
     }
 
-    public static void loadGalleryPhotosAlbums(final int guid, final String[] filterMimiType) {
-        Thread thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                final ArrayList<AlbumEntry> albumsSorted = new ArrayList<>();
-                final ArrayList<AlbumEntry> videoAlbumsSorted = new ArrayList<>();
-                HashMap<Integer, AlbumEntry> albums = new HashMap<>();
-                AlbumEntry allPhotosAlbum = null;
-                String cameraFolder = Environment
-                        .getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
-                        .getAbsolutePath() + "/" + "Camera/";
+    public static class PhotoEntry {
+        public int sortindex;
+        public int bucketId;
+        public int imageId;
+        public long dateTaken;
+        public String path;
+        public int orientation;
+        public String thumbPath;
+        public String imagePath;
+        public boolean isVideo;
+        public CharSequence caption;
 
-                // 相当于我们常用sql where 后面的写法
-                StringBuilder selectionBuilder = null;
-                if (filterMimiType != null && filterMimiType.length > 0) {
-                    selectionBuilder = new StringBuilder();
-                    int length = filterMimiType.length;
-                    for (int i = 0; i < length; i++) {
-                        String mimeType = MediaStore.Files.FileColumns.MIME_TYPE;
-                        if (0 == i) {
-                            selectionBuilder.append(mimeType).append(" !=?");
-                        } else {
-                            selectionBuilder.append(" and ").append(mimeType).append(" !=?");
-                        }
-                    }
-                }
-                String selection = selectionBuilder == null ? null : selectionBuilder.toString();
-
-                Integer cameraAlbumId = null;
-                Integer cameraAlbumVideoId = null;
-
-                Cursor cursor = null;
-                try {
-                    cursor = MediaStore.Images.Media.query(
-                            Gallery.applicationContext.getContentResolver(),
-                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projectionPhotos,
-                            selection, filterMimiType,
-                            MediaStore.Images.Media.DATE_TAKEN + " DESC");
-                    if (cursor != null) {
-                        int imageIdColumn = cursor.getColumnIndex(MediaStore.Images.Media._ID);
-                        int bucketIdColumn = cursor
-                                .getColumnIndex(MediaStore.Images.Media.BUCKET_ID);
-                        int bucketNameColumn = cursor
-                                .getColumnIndex(MediaStore.Images.Media.BUCKET_DISPLAY_NAME);
-                        int dataColumn = cursor.getColumnIndex(MediaStore.Images.Media.DATA);
-                        int dateColumn = cursor
-                                .getColumnIndex(MediaStore.Images.Media.DATE_TAKEN);
-                        int orientationColumn = cursor
-                                .getColumnIndex(MediaStore.Images.Media.ORIENTATION);
-//                         int mimeTypeColumn = cursor.getColumnIndex(MediaStore.Files.FileColumns.MIME_TYPE);
-
-                        while (cursor.moveToNext()) {
-                            int imageId = cursor.getInt(imageIdColumn);
-                            int bucketId = cursor.getInt(bucketIdColumn);
-                            String bucketName = cursor.getString(bucketNameColumn);
-                            String path = cursor.getString(dataColumn);
-                            long dateTaken = cursor.getLong(dateColumn);
-                            int orientation = cursor.getInt(orientationColumn);
-//                             String mimeType = cursor.getString(mimeTypeColumn);
-
-                            if (path == null || path.length() == 0) {
-                                continue;
-                            }
-
-                            PhotoEntry photoEntry = new PhotoEntry(bucketId, imageId, dateTaken,
-                                    path, orientation, false);
-
-                            if (allPhotosAlbum == null) {
-                                allPhotosAlbum = new AlbumEntry(0, LocaleController.getString(
-                                        "AllPhotos", R.string.AllPhotos), photoEntry, false);
-                                albumsSorted.add(0, allPhotosAlbum);
-                            }
-                            if (allPhotosAlbum != null) {
-                                allPhotosAlbum.addPhoto(photoEntry);
-                            }
-
-                            AlbumEntry albumEntry = albums.get(bucketId);
-                            if (albumEntry == null) {
-                                albumEntry = new AlbumEntry(bucketId, bucketName, photoEntry,
-                                        false);
-                                albums.put(bucketId, albumEntry);
-                                if (cameraAlbumId == null && path.startsWith(cameraFolder)) {
-                                    if (albumsSorted.size() >= 2) {
-                                        albumsSorted.add(1, albumEntry);
-                                    } else {
-                                        albumsSorted.add(albumEntry);
-                                    }
-                                    cameraAlbumId = bucketId;
-                                } else {
-                                    albumsSorted.add(albumEntry);
-                                }
-                            }
-
-                            albumEntry.addPhoto(photoEntry);
-                        }
-                    }
-                } catch (Throwable e) {
-                    e.printStackTrace();
-                } finally {
-                    if (cursor != null) {
-                        try {
-                            cursor.close();
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-
-                try {
-                    albums.clear();
-                    cursor = null;
-                    AlbumEntry allVideosAlbum = null;
-                     cursor = MediaStore.Images.Media.query(
-                     Gallery.applicationContext.getContentResolver(),
-                     MediaStore.Video.Media.EXTERNAL_CONTENT_URI, projectionVideo, null,
-                     null, MediaStore.Video.Media.DATE_TAKEN + " DESC");
-                    if (cursor != null) {
-                        int imageIdColumn = cursor.getColumnIndex(MediaStore.Video.Media._ID);
-                        int bucketIdColumn = cursor
-                                .getColumnIndex(MediaStore.Video.Media.BUCKET_ID);
-                        int bucketNameColumn = cursor
-                                .getColumnIndex(MediaStore.Video.Media.BUCKET_DISPLAY_NAME);
-                        int dataColumn = cursor.getColumnIndex(MediaStore.Video.Media.DATA);
-                        int dateColumn = cursor
-                                .getColumnIndex(MediaStore.Video.Media.DATE_TAKEN);
-
-                        while (cursor.moveToNext()) {
-                            int imageId = cursor.getInt(imageIdColumn);
-                            int bucketId = cursor.getInt(bucketIdColumn);
-                            String bucketName = cursor.getString(bucketNameColumn);
-                            String path = cursor.getString(dataColumn);
-                            long dateTaken = cursor.getLong(dateColumn);
-
-                            if (path == null || path.length() == 0) {
-                                continue;
-                            }
-
-                            PhotoEntry photoEntry = new PhotoEntry(bucketId, imageId, dateTaken,
-                                    path, 0, true);
-
-                            if (allVideosAlbum == null) {
-                                allVideosAlbum = new AlbumEntry(0, LocaleController.getString(
-                                        "AllVideo", R.string.AllVideo), photoEntry, true);
-                                videoAlbumsSorted.add(0, allVideosAlbum);
-                            }
-                            if (allVideosAlbum != null) {
-                                allVideosAlbum.addPhoto(photoEntry);
-                            }
-
-                            AlbumEntry albumEntry = albums.get(bucketId);
-                            if (albumEntry == null) {
-                                albumEntry = new AlbumEntry(bucketId, bucketName, photoEntry,
-                                        true);
-                                albums.put(bucketId, albumEntry);
-                                if (cameraAlbumVideoId == null && cameraFolder != null
-                                        && path != null && path.startsWith(cameraFolder)) {
-                                    videoAlbumsSorted.add(0, albumEntry);
-                                    cameraAlbumVideoId = bucketId;
-                                } else {
-                                    videoAlbumsSorted.add(albumEntry);
-                                }
-                            }
-
-                            albumEntry.addPhoto(photoEntry);
-                        }
-                    }
-                } catch (Throwable e) {
-                    e.printStackTrace();
-                } finally {
-                    if (cursor != null) {
-                        try {
-                            cursor.close();
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-
-                final Integer cameraAlbumIdFinal = cameraAlbumId;
-                final Integer cameraAlbumVideoIdFinal = cameraAlbumVideoId;
-                final AlbumEntry allPhotosAlbumFinal = allPhotosAlbum;
-                AndroidUtilities.runOnUIThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        allPhotosAlbumEntry = allPhotosAlbumFinal;
-                        NotificationCenter.getInstance().postNotificationName(
-                                NotificationCenter.albumsDidLoaded, guid, albumsSorted,
-                                cameraAlbumIdFinal, videoAlbumsSorted, cameraAlbumVideoIdFinal);
-                    }
-                });
-            }
-        });
-        thread.setPriority(Thread.MIN_PRIORITY);
-        thread.start();
+        public PhotoEntry(int bucketId, int imageId, long dateTaken, String path, int orientation,
+                          boolean isVideo) {
+            this.bucketId = bucketId;
+            this.imageId = imageId;
+            this.dateTaken = dateTaken;
+            this.path = path;
+            this.orientation = orientation;
+            this.isVideo = isVideo;
+        }
     }
 
     @SuppressLint("NewApi")
