@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.wangshy.androiddemo">
 
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -17,7 +20,25 @@
         </activity>
         <activity android:name=".SecondActivity" />
         <activity android:name=".xfermode.XfermodeActivity" />
-        <activity android:name=".animation.AnimationActivity"></activity>
+        <activity android:name=".animation.AnimationActivity" />
+        <activity android:name=".broadcast.BroadcastActivity" />
+
+        <receiver
+            android:name=".broadcast.BootCompleteReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <activity android:name=".DataActivity" />
+        <activity android:name=".view.MyViewActivity" />
+        <activity
+            android:name=".md.MDActivity"
+            android:label="@string/title_activity_md"
+            android:theme="@style/AppTheme.NoActionBar" />
+        <activity android:name=".PngActivity"></activity>
     </application>
 
 </manifest>

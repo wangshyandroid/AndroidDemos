@@ -21,6 +21,11 @@ public class Content {
             case ACTIVITY:
                 mList.add("基本动画");
                 mList.add("Xfermode学习");
+                mList.add("广播学习");
+                mList.add("数据持久化");
+                mList.add("自定义View练习");
+                mList.add("MD风格");
+                mList.add("图片选择");
                 break;
             case XFERMODE:
                 break;
@@ -33,7 +38,6 @@ public class Content {
                 mList.add("属性动画 setRotationX()");
                 mList.add("属性动画 BackgroundColor()");
                 mList.add("属性动画 组合动画");
-
                 break;
         }
         return mList;

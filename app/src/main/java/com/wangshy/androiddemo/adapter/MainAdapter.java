@@ -23,6 +23,7 @@ public class MainAdapter extends RecyclerView.Adapter<MainAdapter.ViewHolder> {
     private List<String> mList;
 
     private IRecyclerView view;
+    private View.OnClickListener listener;
 
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
@@ -43,6 +44,7 @@ public class MainAdapter extends RecyclerView.Adapter<MainAdapter.ViewHolder> {
                         }
                     }
                 });
+//        holder.itme_layout.setOnClickListener(listener);
     }
 
     @Override
@@ -63,6 +65,11 @@ public class MainAdapter extends RecyclerView.Adapter<MainAdapter.ViewHolder> {
 
     public MainAdapter setOn(IRecyclerView view) {
         this.view = view;
+        return this;
+    }
+
+    public MainAdapter setOn(View.OnClickListener listener) {
+        this.listener = listener;
         return this;
     }
 

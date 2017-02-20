@@ -4,7 +4,11 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.widget.Button;
 
+import com.wangshy.androiddemo.broadcast.BroadcastActivity;
+import com.wangshy.androiddemo.md.MDActivity;
+import com.wangshy.androiddemo.view.MyViewActivity;
 import com.wangshy.androiddemo.xfermode.XfermodeActivity;
 import com.wangshy.androiddemo.adapter.MainAdapter;
 
@@ -12,6 +16,7 @@ public class MainActivity extends AppCompatActivity {
     private static String TAG = MainActivity.class.getName();
     private RecyclerView mreycler;
     private MainAdapter mainAdapter;
+    private Button search_button;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,13 +33,6 @@ public class MainActivity extends AppCompatActivity {
                         toActivity(position);
                     }
                 }));
-
-//        mainAdapter.setOn(new MainAdapter.IRecyclerView() {
-//            @Override
-//            public void onCheck(int position) {
-//                toActivity(position);
-//            }
-//        });
     }
 
     private void toActivity(int position) {
@@ -44,6 +42,21 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case 1:
                 XfermodeActivity.XfermodeActivity(this);
+                break;
+            case 2:
+                BroadcastActivity.actionStart(this);
+                break;
+            case 3:
+                DataActivity.actionStart(this);
+                break;
+            case 4:
+                MyViewActivity.actionStart(this);
+                break;
+            case 5:
+                MDActivity.actionStart(this);
+                break;
+            case 6:
+                PngActivity.actionStart(this);
                 break;
         }
     }
